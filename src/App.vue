@@ -1,18 +1,10 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, watch } from 'vue';
 import { FrameVTO } from './plugins/mediapipe.js';
 import specsImage from './assets/specs.jpg';
 
 let vto = new FrameVTO('input_video_vto', 'output_canvas_vto', 'threejs-container-vto');
-vto.output_selector_pd = 'pd-measurement';
-// vto.output_selector_pd_l = 'pd-left';
-// vto.output_selector_pd_r = 'pd-right';
-// vto.output_selector_width = 'width-measurement';
-// vto.output_selector_rotation = 'rotation-measurement';
-vto.output_selector_size = 'recommended-size';
-vto.output_selector_shape = 'face-shape';
-vto.output_selector_frame = 'recommended-shape';
-vto.output_selector_faceAlignment = 'allignmentMsg'
+
 
 let vto_image = 
 onMounted(() => {
@@ -20,12 +12,14 @@ onMounted(() => {
   vto.start();
   vto.toggleCamera();
   vto.updateSize();
+  
   vto.vtoStart(specsImage);
+
 });
+
 </script>
 
 <template>
-  <div>Hello</div>
   <div class="container">
       <div id="facial-insights-wrapper-vto" class="video-container position-relative">
         <div class="output-container">

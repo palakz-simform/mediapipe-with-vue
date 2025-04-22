@@ -2,8 +2,8 @@ import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.0/+esm'
 import * as cam from '@mediapipe/camera_utils';
 import * as ctrl from '@mediapipe/control_utils';
 import * as draw from '@mediapipe/drawing_utils';
-import { FaceMesh } from '@mediapipe/face_mesh';
 import { Holistic } from '@mediapipe/holistic';
+import { FaceMesh, FACEMESH_RIGHT_IRIS, FACEMESH_LEFT_IRIS } from '@mediapipe/face_mesh';
 export class FrameVTO {
     static VERSION = '0.3.0';
 
@@ -21,6 +21,7 @@ export class FrameVTO {
         this.output_selector_rotation;
         this.output_selector_oc;
         this.output_selector_faceAlignment;
+        this.faceDetected = false;
 
         // PD Measurement
         this.detectedPD_L = 0; // measured PD using left iris measurement
@@ -263,23 +264,24 @@ export class FrameVTO {
     onResults = (results) => {
         this.canvasElement.width = this.videoElement.videoWidth;
         this.canvasElement.height = this.videoElement.videoHeight;
-
+        this.faceDetected = false;
         this.canvasCtx.save();
         this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
 
         this.canvasCtx.drawImage(results.image, 0, 0, this.canvasElement.width, this.canvasElement.height);
 
-
         if (results.multiFaceLandmarks.length > 0) {
             for (const landmarks of results.multiFaceLandmarks) {
+                this.faceDetected = true
+                console.log(this.faceDetected)
                 // calculate the relative distances for the LEFT iris diameter
                 const leftIrisRelativeDistance = this.calculateDistance(landmarks[this.leftInnerIrisEdge], landmarks[this.leftOuterIrisEdge]);
                 // calculate the relative distances for the RIGHT iris diameter
                 const rightIrisRelativeDistance = this.calculateDistance(landmarks[this.rightInnerIrisEdge], landmarks[this.rightOuterIrisEdge]);
 
                 // draw green landmarks on iris
-                // drawConnectors(this.canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, { color: '#30FF30', lineWidth: 0.25 });
-                // drawConnectors(this.canvasCtx, landmarks, FACEMESH_LEFT_IRIS, { color: '#30FF30', lineWidth: 0.25 });
+                draw.drawConnectors(this.canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, { color: '#30FF30', lineWidth: 0.25 });
+                draw.drawConnectors(this.canvasCtx, landmarks, FACEMESH_LEFT_IRIS, { color: '#30FF30', lineWidth: 0.25 });
                 // draw red circle around center of iris
                 const x_l = landmarks[this.leftIris].x * this.canvasElement.width;
                 const y_l = landmarks[this.leftIris].y * this.canvasElement.height;
