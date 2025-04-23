@@ -2,7 +2,6 @@
 import { onMounted, ref } from "vue";
 import { FrameVTO } from "./plugins/mediapipe.js";
 import specsImage from "./assets/specs.jpg";
-import hatImage from "./assets/hat.png";
 import useMediaPipe from "./composables/useMediaPipe.js";
 const {
   input_video,
@@ -39,7 +38,6 @@ onMounted(() => {
   start();
   // toggleCamera();
   updateSize();
-  vtoStart(specsImage);
 });
 const changeImg = (imgType) => {
   if (imgType === "specs") {
@@ -84,7 +82,6 @@ const changeImg = (imgType) => {
     ></video>
   </div>
   <button @click="changeImg('specs')">Specs</button>
-  <button @click="changeImg('hat')">Hat</button>
 </template>
 
 <style scoped>

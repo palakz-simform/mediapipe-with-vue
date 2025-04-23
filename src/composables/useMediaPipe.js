@@ -179,7 +179,7 @@ export default function useMediaPipe() {
     });
     faceMesh.setOptions({
       selfieMode: true,
-      maxNumFaces: 1,
+      maxNumFaces: 3,
       refineLandmarks: true,
       minDetectionConfidence: 0.5,
       minTrackingConfidence: 0.5,
@@ -263,17 +263,14 @@ export default function useMediaPipe() {
 
       if (nullProperties.length === 0) {
         const { yaw, pitch, roll } = headPose.value;
-
         // Position
         glassesMesh.position.set(
           vtoNormalizedX.value,
           vtoNormalizedY.value / 2 - 0.05,
           0.05
         );
-
         // Scale
         glassesMesh.scale.set(vtoWidth.value, vtoWidth.value, 1);
-
         // Rotation
         const adjustedPitch = pitch + Math.PI / 2 + Math.PI / 8;
         glassesMesh.rotation.set(
@@ -281,7 +278,6 @@ export default function useMediaPipe() {
           vtoRotationZ.value,
           Math.cos(roll)
         );
-
         // Visibility
         glassesMesh.visible = true;
       } else {
@@ -573,6 +569,10 @@ export default function useMediaPipe() {
 
         const headPoseData = calculateHeadPose(landmarks);
         headPose.value = headPoseData;
+
+        drawFullLipstick(landmarks);
+        drawEyeliner(landmarks);
+        // drawFaceMesh(landmarks);
         // drawSpectacles(landmarks, headPoseData);
         if (getFaceShape.value) {
           recommendEyeglasses(determineFaceShape(landmarks));
@@ -899,49 +899,204 @@ export default function useMediaPipe() {
     return { yaw, pitch, roll };
   };
 
-  //   const drawSpectacles = (landmarks, headPose) => {
-  //     const leftEye = landmarks[33];
-  //     const rightEye = landmarks[263];
-  //     const { yaw, pitch, roll } = headPose; // Assume roll is now provided
+  const drawFullLipstick = (landmarks) => {
+    if (!landmarks || landmarks.length === 0) return;
 
-  //     const canvasWidth = canvasElement.value.width;
-  //     const canvasHeight = canvasElement.value.height;
+    const canvasWidth = canvasElement.value.width;
+    const canvasHeight = canvasElement.value.height;
 
-  //     // Midpoint between eyes
-  //     const centerX = ((leftEye.x + rightEye.x) / 2) * canvasWidth;
-  //     const centerY = ((leftEye.y + rightEye.y) / 2) * canvasHeight;
+    const toCanvasCoords = (index) => {
+      const point = landmarks[index];
+      return [point.x * canvasWidth, point.y * canvasHeight];
+    };
 
-  //     // Adjust for face movement (pitch = up/down, yaw = left/right)
-  //     const adjustedX = centerX + Math.sin(yaw) * 10; // tweak sensitivity
-  //     const adjustedY = centerY - Math.sin(pitch) * 10;
+    // Combined outer and inner lip landmarks
+    const outerUpperLip = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
+    const outerLowerLip = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
+    const innerUpperLip = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
+    const innerLowerLip = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
 
-  //     // Calculate glasses size based on eye distance
-  //     const glassesWidth = Math.abs(rightEye.x - leftEye.x) * canvasWidth * 1.6;
-  //     const glassesHeight = glassesWidth * 0.38;
+    canvasCtx.value.save();
+    canvasCtx.value.fillStyle = "rgba(139, 25, 69, 0.6)"; // Soft pink lipstick
+    canvasCtx.value.beginPath();
 
-  //     frameImage.src = specsImage;
+    // Outer Lip Shape (Upper + Lower)
+    const allOuter = [...outerUpperLip, ...outerLowerLip.reverse()];
+    let [startX, startY] = toCanvasCoords(allOuter[0]);
+    canvasCtx.value.moveTo(startX, startY);
+    for (let i = 1; i < allOuter.length; i++) {
+      const [x, y] = toCanvasCoords(allOuter[i]);
+      canvasCtx.value.lineTo(x, y);
+    }
+    canvasCtx.value.closePath();
 
-  //     canvasCtx.value.save();
-  //     canvasCtx.value.translate(adjustedX, adjustedY);
+    // Inner Lip Shape (Upper + Lower) — for mouth opening
+    canvasCtx.value.moveTo(...toCanvasCoords(innerUpperLip[0]));
+    for (let i = 1; i < innerUpperLip.length; i++) {
+      const [x, y] = toCanvasCoords(innerUpperLip[i]);
+      canvasCtx.value.lineTo(x, y);
+    }
+    for (let i = 0; i < innerLowerLip.length; i++) {
+      const [x, y] = toCanvasCoords(innerLowerLip[i]);
+      canvasCtx.value.lineTo(x, y);
+    }
+    canvasCtx.value.closePath();
 
-  //     // Rotate with face roll (Z axis)
-  //     const faceRoll = roll || 0; // fallback if roll isn't available
-  //     canvasCtx.value.rotate(Math.cos(faceRoll)); // roll in radians
+    // Fill with even-odd rule (fills outer, subtracts inner)
+    canvasCtx.value.fill("evenodd");
+    canvasCtx.value.restore();
+  };
 
-  //     // Optionally: subtly rotate based on yaw (simulate skew)
-  //     // canvasCtx.value.rotate(yaw * 0.1); // uncomment if it looks better
+  const drawEyeliner = (landmarks) => {
+    if (!landmarks || landmarks.length === 0) return;
 
-  //     // Draw spectacles centered at the nose bridge
-  //     canvasCtx.value.drawImage(
-  //       frameImage,
-  //       -glassesWidth / 2,
-  //       -glassesHeight / 2.5,
-  //       glassesWidth,
-  //       glassesHeight
-  //     );
+    const canvasWidth = canvasElement.value.width;
+    const canvasHeight = canvasElement.value.height;
 
-  //     canvasCtx.value.restore();
-  //   };
+    const toCanvasCoords = (index) => {
+      const point = landmarks[index];
+      return [point.x * canvasWidth, point.y * canvasHeight];
+    };
+
+    const drawEyeLinerPath = (indices) => {
+      canvasCtx.value.beginPath();
+      const [startX, startY] = toCanvasCoords(indices[0]);
+      canvasCtx.value.moveTo(startX, startY);
+
+      for (let i = 1; i < indices.length; i++) {
+        const [x, y] = toCanvasCoords(indices[i]);
+        canvasCtx.value.lineTo(x, y);
+      }
+
+      canvasCtx.value.stroke();
+    };
+
+    canvasCtx.value.save();
+    canvasCtx.value.strokeStyle = "rgba(0, 0, 0, 0.7)"; // soft black
+    canvasCtx.value.lineWidth = 2;
+    canvasCtx.value.lineCap = "round";
+
+    // Left eye upper lid: 33 to 133
+    drawEyeLinerPath([33, 160, 158, 133]);
+
+    // Right eye upper lid: 263 to 362
+    drawEyeLinerPath([263, 387, 385, 362]);
+
+    canvasCtx.value.restore();
+  };
+
+  const drawFaceMesh = (landmarks) => {
+    if (!landmarks || landmarks.length === 0) return;
+
+    const canvasWidth = canvasElement.value.width;
+    const canvasHeight = canvasElement.value.height;
+
+    const toCanvasCoords = (index) => {
+      const point = landmarks[index];
+      return [point.x * canvasWidth, point.y * canvasHeight];
+    };
+
+    const drawPath = (indices, closed = false) => {
+      canvasCtx.value.beginPath();
+      const [startX, startY] = toCanvasCoords(indices[0]);
+      canvasCtx.value.moveTo(startX, startY);
+      for (let i = 1; i < indices.length; i++) {
+        const [x, y] = toCanvasCoords(indices[i]);
+        canvasCtx.value.lineTo(x, y);
+      }
+      if (closed) canvasCtx.value.closePath();
+      canvasCtx.value.stroke();
+    };
+
+    canvasCtx.value.save();
+    canvasCtx.value.strokeStyle = "rgba(0, 255, 0, 0.5)"; // light green lines
+    canvasCtx.value.lineWidth = 1;
+
+    // Jawline
+    drawPath([
+      234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379,
+      365, 397, 288,
+    ]);
+
+    // Eyebrows
+    drawPath([70, 63, 105, 66, 107], false); // Left
+    drawPath([336, 296, 334, 293, 300], false); // Right
+
+    // Eyes
+    drawPath([33, 160, 158, 133, 153, 144, 163, 7], true); // Left eye full loop
+    drawPath([263, 387, 385, 362, 380, 373, 390, 249], true); // Right eye full loop
+
+    // Lips
+    // Upper Lip (outer)
+    drawPath([61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291], false);
+
+    // Lower Lip (outer)
+    drawPath([61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291], false);
+
+    // Upper Lip (inner)
+    drawPath([78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308], false);
+
+    // Lower Lip (inner)
+    drawPath([78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308], false);
+
+    // Nose bridge & tip
+    drawPath([168, 6, 197, 195, 5, 4, 1, 19, 94, 2]);
+
+    canvasCtx.value.restore();
+
+    // Draw landmark points (optional)
+    canvasCtx.value.fillStyle = "rgba(255, 0, 0, 0.5)";
+    for (let i = 0; i < landmarks.length; i++) {
+      const [x, y] = toCanvasCoords(i);
+      canvasCtx.value.beginPath();
+      canvasCtx.value.arc(x, y, 1.2, 0, 2 * Math.PI);
+      canvasCtx.value.fill();
+    }
+  };
+
+  // const drawSpectacles = (landmarks, headPose) => {
+  //   const leftEye = landmarks[33];
+  //   const rightEye = landmarks[263];
+  //   const { yaw, pitch, roll } = headPose; // Assume roll is now provided
+
+  //   const canvasWidth = canvasElement.value.width;
+  //   const canvasHeight = canvasElement.value.height;
+
+  //   // Midpoint between eyes
+  //   const centerX = ((leftEye.x + rightEye.x) / 2) * canvasWidth;
+  //   const centerY = ((leftEye.y + rightEye.y) / 2) * canvasHeight;
+
+  //   // Adjust for face movement (pitch = up/down, yaw = left/right)
+  //   const adjustedX = centerX + Math.sin(yaw) * 10; // tweak sensitivity
+  //   const adjustedY = centerY - Math.sin(pitch) * 10;
+
+  //   // Calculate glasses size based on eye distance
+  //   const glassesWidth = Math.abs(rightEye.x - leftEye.x) * canvasWidth * 1.6;
+  //   const glassesHeight = glassesWidth * 0.38;
+
+  //   frameImage.src = specsImage;
+
+  //   canvasCtx.value.save();
+  //   canvasCtx.value.translate(adjustedX, adjustedY);
+
+  //   // Rotate with face roll (Z axis)
+  //   const faceRoll = roll || 0; // fallback if roll isn't available
+  //   canvasCtx.value.rotate(Math.cos(faceRoll)); // roll in radians
+
+  //   // Optionally: subtly rotate based on yaw (simulate skew)
+  //   // canvasCtx.value.rotate(yaw * 0.1); // uncomment if it looks better
+
+  //   // Draw spectacles centered at the nose bridge
+  //   canvasCtx.value.drawImage(
+  //     frameImage,
+  //     -glassesWidth / 2,
+  //     -glassesHeight / 2.5,
+  //     glassesWidth,
+  //     glassesHeight
+  //   );
+
+  //   canvasCtx.value.restore();
+  // };
 
   const stopFaceDetection = () => {
     getFaceShape.value = false;
