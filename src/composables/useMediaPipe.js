@@ -3,6 +3,7 @@ import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/+esm";
 import * as cam from "@mediapipe/camera_utils";
 import * as draw from "@mediapipe/drawing_utils";
 import { Holistic } from "@mediapipe/holistic";
+import specsImage from "@/assets/specs.jpg";
 import {
   FaceMesh,
   FACEMESH_RIGHT_IRIS,
@@ -14,6 +15,7 @@ let faceMesh1 = new FaceMesh({
   },
 });
 export default function useMediaPipe() {
+  let frameImage = new Image();
   const input_video = ref(null);
   const output_canvas = ref(null);
   const threejs_container = ref(null);
@@ -260,7 +262,6 @@ export default function useMediaPipe() {
       if (vtoRotationZ.value === null) nullProperties.push("vtoRotationZ");
 
       if (nullProperties.length === 0) {
-        console.log(headPose.value);
         const { yaw, pitch, roll } = headPose.value;
 
         // Position
@@ -301,7 +302,6 @@ export default function useMediaPipe() {
   };
 
   const onResults = (results) => {
-    console.log("HHHHH");
     if (!canvasElement.value || !videoElement.value || !canvasCtx.value) return;
 
     canvasElement.value.width = videoElement.value.videoWidth;
@@ -572,10 +572,8 @@ export default function useMediaPipe() {
         );
 
         const headPoseData = calculateHeadPose(landmarks);
-        console.log(headPoseData);
         headPose.value = headPoseData;
-        console.log(headPose.value);
-
+        // drawSpectacles(landmarks, headPoseData);
         if (getFaceShape.value) {
           recommendEyeglasses(determineFaceShape(landmarks));
         }
@@ -652,7 +650,6 @@ export default function useMediaPipe() {
 
   const start = () => {
     // Implement camera start logic here
-    console.log(camera);
     camera.start();
     isCameraOn.value = true;
   };
@@ -902,6 +899,50 @@ export default function useMediaPipe() {
     return { yaw, pitch, roll };
   };
 
+  //   const drawSpectacles = (landmarks, headPose) => {
+  //     const leftEye = landmarks[33];
+  //     const rightEye = landmarks[263];
+  //     const { yaw, pitch, roll } = headPose; // Assume roll is now provided
+
+  //     const canvasWidth = canvasElement.value.width;
+  //     const canvasHeight = canvasElement.value.height;
+
+  //     // Midpoint between eyes
+  //     const centerX = ((leftEye.x + rightEye.x) / 2) * canvasWidth;
+  //     const centerY = ((leftEye.y + rightEye.y) / 2) * canvasHeight;
+
+  //     // Adjust for face movement (pitch = up/down, yaw = left/right)
+  //     const adjustedX = centerX + Math.sin(yaw) * 10; // tweak sensitivity
+  //     const adjustedY = centerY - Math.sin(pitch) * 10;
+
+  //     // Calculate glasses size based on eye distance
+  //     const glassesWidth = Math.abs(rightEye.x - leftEye.x) * canvasWidth * 1.6;
+  //     const glassesHeight = glassesWidth * 0.38;
+
+  //     frameImage.src = specsImage;
+
+  //     canvasCtx.value.save();
+  //     canvasCtx.value.translate(adjustedX, adjustedY);
+
+  //     // Rotate with face roll (Z axis)
+  //     const faceRoll = roll || 0; // fallback if roll isn't available
+  //     canvasCtx.value.rotate(Math.cos(faceRoll)); // roll in radians
+
+  //     // Optionally: subtly rotate based on yaw (simulate skew)
+  //     // canvasCtx.value.rotate(yaw * 0.1); // uncomment if it looks better
+
+  //     // Draw spectacles centered at the nose bridge
+  //     canvasCtx.value.drawImage(
+  //       frameImage,
+  //       -glassesWidth / 2,
+  //       -glassesHeight / 2.5,
+  //       glassesWidth,
+  //       glassesHeight
+  //     );
+
+  //     canvasCtx.value.restore();
+  //   };
+
   const stopFaceDetection = () => {
     getFaceShape.value = false;
   };
@@ -955,7 +996,7 @@ export default function useMediaPipe() {
     const scalingFactor =
       calculateScalingFactor(width) / (isModal.value ? 1 : 1);
     const FOV = calculateFOV(width) * scalingFactor;
-    return FOV;
+    return FOV + 7;
   };
 
   return {
@@ -968,5 +1009,6 @@ export default function useMediaPipe() {
     toggleCamera,
     isModal,
     vtoStart, // in case you want to toggle this externally
+    frameImage,
   };
 }

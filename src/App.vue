@@ -2,6 +2,7 @@
 import { onMounted, ref } from "vue";
 import { FrameVTO } from "./plugins/mediapipe.js";
 import specsImage from "./assets/specs.jpg";
+import hatImage from "./assets/hat.png";
 import useMediaPipe from "./composables/useMediaPipe.js";
 const {
   input_video,
@@ -12,6 +13,7 @@ const {
   start,
   toggleCamera,
   vtoStart,
+  frameImage,
 } = useMediaPipe();
 let vto = new FrameVTO(
   "input_video_vto",
@@ -22,7 +24,6 @@ let vto = new FrameVTO(
 const videoElement = ref(null);
 const outputCanvas = ref(null);
 const threeJsContainer = ref(null);
-
 onMounted(() => {
   // vto.init();
   // vto.start();
@@ -40,6 +41,13 @@ onMounted(() => {
   updateSize();
   vtoStart(specsImage);
 });
+const changeImg = (imgType) => {
+  if (imgType === "specs") {
+    vtoStart(specsImage);
+  } else if (imgType === "hat") {
+    vtoStart(hatImage);
+  }
+};
 </script>
 
 <template>
@@ -75,6 +83,8 @@ onMounted(() => {
       playsinline
     ></video>
   </div>
+  <button @click="changeImg('specs')">Specs</button>
+  <button @click="changeImg('hat')">Hat</button>
 </template>
 
 <style scoped>
