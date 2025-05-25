@@ -1,8 +1,9 @@
 <script setup>
-import { onMounted, ref } from "vue";
+import { ref, onMounted } from "vue";
 import { FrameVTO } from "./plugins/mediapipe.js";
 import specsImage from "./assets/specs.jpg";
 import useMediaPipe from "./composables/useMediaPipe.js";
+
 const {
   input_video,
   output_canvas,
@@ -13,39 +14,37 @@ const {
   toggleCamera,
   vtoStart,
   frameImage,
+  faceShape,
+  filters,
 } = useMediaPipe();
-let vto = new FrameVTO(
-  "input_video_vto",
-  "output_canvas_vto",
-  "threejs-container-vto"
-);
 
 const videoElement = ref(null);
 const outputCanvas = ref(null);
 const threeJsContainer = ref(null);
-onMounted(() => {
-  // vto.init();
-  // vto.start();
-  // vto.toggleCamera();
-  // vto.updateSize();
 
-  // vto.vtoStart(specsImage);
+// Reactive states for filters
+
+// Toggle filter state
+const toggleFilter = (filter) => {
+  filters.value[filter] = !filters.value[filter];
+  if (filter == "specs") {
+    vtoStart(specsImage);
+  }
+  if (filter == "facialShape") {
+    alert("Your facial shape is " + faceShape.value);
+    filters.value[filter] = !filters.value[filter];
+  }
+};
+
+onMounted(() => {
   input_video.value = videoElement.value;
   output_canvas.value = outputCanvas.value;
   threejs_container.value = threeJsContainer.value;
 
   init();
   start();
-  // toggleCamera();
   updateSize();
 });
-const changeImg = (imgType) => {
-  if (imgType === "specs") {
-    vtoStart(specsImage);
-  } else if (imgType === "hat") {
-    vtoStart(hatImage);
-  }
-};
 </script>
 
 <template>
@@ -81,7 +80,42 @@ const changeImg = (imgType) => {
       playsinline
     ></video>
   </div>
-  <button @click="changeImg('specs')">Specs</button>
+  <!-- Snapchat-like Buttons -->
+  <div class="snapchat-buttons">
+    <button
+      :class="{ active: filters.facemesh }"
+      @click="toggleFilter('facemesh')"
+    >
+      <img src="https://via.placeholder.com/50" alt="FaceMesh" />
+      <span>FaceMesh</span>
+    </button>
+    <button
+      :class="{ active: filters.lipstick }"
+      @click="toggleFilter('lipstick')"
+    >
+      <img src="https://via.placeholder.com/50" alt="Lipstick" />
+      <span>Lipstick</span>
+    </button>
+    <button
+      :class="{ active: filters.eyeliner }"
+      @click="toggleFilter('eyeliner')"
+    >
+      <img src="https://via.placeholder.com/50" alt="Eyeliner" />
+      <span>Eyeliner</span>
+    </button>
+
+    <button :class="{ active: filters.specs }" @click="toggleFilter('specs')">
+      <img src="https://via.placeholder.com/50" alt="Specs" />
+      <span>Specs</span>
+    </button>
+    <button
+      :class="{ active: filters.facialShape }"
+      @click="toggleFilter('facialShape')"
+    >
+      <img src="https://via.placeholder.com/50" alt="Facial Shape" />
+      <span>Facial Shape</span>
+    </button>
+  </div>
 </template>
 
 <style scoped>
@@ -716,5 +750,47 @@ video {
     height: 345px;
     width: 265px;
   }
+}
+
+.snapchat-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.snapchat-buttons button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: #fff;
+  border: 2px solid #ddd;
+  border-radius: 10px;
+  padding: 1rem;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.snapchat-buttons button.active {
+  border-color: #007bff;
+  background-color: #e7f3ff;
+}
+
+snapchat-buttons button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.snapchat-buttons button img {
+  width: 50px;
+  height: 50px;
+  margin-bottom: 0.5rem;
+}
+
+.snapchat-buttons button span {
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: #333;
 }
 </style>

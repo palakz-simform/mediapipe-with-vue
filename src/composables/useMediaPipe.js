@@ -9,26 +9,12 @@ import {
   FACEMESH_RIGHT_IRIS,
   FACEMESH_LEFT_IRIS,
 } from "@mediapipe/face_mesh";
-let faceMesh1 = new FaceMesh({
-  locateFile: (file) => {
-    return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-  },
-});
+
 export default function useMediaPipe() {
   let frameImage = new Image();
   const input_video = ref(null);
   const output_canvas = ref(null);
-  const threejs_container = ref(null);
-  const output_selector_pd = ref(null);
-  const output_selector_pd_l = ref(null);
-  const output_selector_pd_r = ref(null);
-  const output_selector_width = ref(null);
-  const output_selector_frame = ref(null);
-  const output_selector_size = ref(null);
-  const output_selector_shape = ref(null);
-  const output_selector_rotation = ref(null);
-  const output_selector_oc = ref(null);
-  const output_selector_faceAlignment = ref(null);
+  const threejs_container = ref(null); //remove
   const faceDetected = ref(false);
 
   // PD Measurement
@@ -40,9 +26,7 @@ export default function useMediaPipe() {
   const detectedBridge = ref(0);
 
   // A measurement
-  const detectedLeftA = ref(0);
   const detectedWidth = ref(0);
-  const detectedRightA = ref(0);
 
   // Moving average
   const rollingAverage = ref({
@@ -53,11 +37,6 @@ export default function useMediaPipe() {
     width: [], // temple width
     height: [], // height of face in center
   });
-
-  // Size and shape
-  const recommendedFramesDetected = ref(null);
-  const recommendedSizeDetected = ref(null);
-  const facialShapeRatio = ref(0);
 
   // Iris measurements
   const irisSize = ref(12.2);
@@ -75,19 +54,9 @@ export default function useMediaPipe() {
   const leftIris = ref(468);
   const rightIris = ref(473);
 
-  // Landmarks for bridge
-  const bridgeTop = ref(168);
-  const bridgeBottom = ref(6);
-  const leftBridge = ref(193);
-  const rightBridge = ref(417);
-
   // Landmarks for temple
   const leftTemple = ref(143);
   const rightTemple = ref(372);
-
-  const leftBridgeLandmark = ref({ x: 0, y: 0 });
-  const frameWidth = ref(1);
-  const frameHeight = ref(1);
 
   // Messages
   const messages = ref([
@@ -101,8 +70,6 @@ export default function useMediaPipe() {
   ]);
   const currentIndex = ref(0);
   const showMessage = ref(false);
-  const showFlashEffect = ref(false);
-
   // Virtual try-on
   const isTryOn = ref(false);
   const imageAspectRatio = ref(null);
@@ -152,12 +119,17 @@ export default function useMediaPipe() {
   const faceSize = ref(null);
   const faceShape = ref(null);
   const showEyeBridgeMid = ref(false);
-  const displayFaceAlignmentMessage = ref(false);
+  const filters = ref({
+    specs: false,
+    lipstick: false,
+    eyeliner: false,
+    facemesh: false,
+    facialShape: false,
+  });
   const init = () => {
     // mediapipe initialization
-    videoElement.value = document.getElementsByClassName("input_video_vto")[0];
-    canvasElement.value =
-      document.getElementsByClassName("output_canvas_vto")[0];
+    videoElement.value = input_video.value;
+    canvasElement.value = output_canvas.value;
     canvasCtx.value = canvasElement.value.getContext("2d");
     holistic = new Holistic({
       locateFile: (file) => {
@@ -191,8 +163,6 @@ export default function useMediaPipe() {
         await faceMesh.send({ image: videoElement.value });
       },
     });
-
-    console.log(camera);
 
     // threejs initialization
     scene = new THREE.Scene();
@@ -569,14 +539,20 @@ export default function useMediaPipe() {
 
         const headPoseData = calculateHeadPose(landmarks);
         headPose.value = headPoseData;
+        if (filters.value.lipstick) {
+          drawFullLipstick(landmarks);
+        }
+        if (filters.value.eyeliner) {
+          drawEyeliner(landmarks);
+        }
+        if (filters.value.facemesh) {
+          drawFaceMesh(landmarks);
+        }
 
-        drawFullLipstick(landmarks);
-        drawEyeliner(landmarks);
+        determineFaceShape(landmarks);
+
         // drawFaceMesh(landmarks);
         // drawSpectacles(landmarks, headPoseData);
-        if (getFaceShape.value) {
-          recommendEyeglasses(determineFaceShape(landmarks));
-        }
       }
     }
 
@@ -782,9 +758,6 @@ export default function useMediaPipe() {
       landmarks[152],
       landmarks[454]
     ).toFixed(2);
-
-    const cheekboneWidth = euclideanDistance(landmarks[93], landmarks[323]);
-    const foreheadWidth = euclideanDistance(landmarks[71], landmarks[301]);
 
     const ratio = faceWidth / faceLength;
     const widthToLengthRatio = parseFloat(ratio.toFixed(2));
@@ -1098,14 +1071,6 @@ export default function useMediaPipe() {
   //   canvasCtx.value.restore();
   // };
 
-  const stopFaceDetection = () => {
-    getFaceShape.value = false;
-  };
-
-  const startFaceDetection = () => {
-    getFaceShape.value = true;
-  };
-
   const getFOV = () => {
     const width = canvasElement.value?.clientWidth || 0;
 
@@ -1163,7 +1128,9 @@ export default function useMediaPipe() {
     start,
     toggleCamera,
     isModal,
-    vtoStart, // in case you want to toggle this externally
+    vtoStart,
     frameImage,
+    faceShape,
+    filters,
   };
 }
