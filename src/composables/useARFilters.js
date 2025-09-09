@@ -1,4 +1,16 @@
 import { ref } from "vue";
+import * as draw from "@mediapipe/drawing_utils";
+import { 
+  FACEMESH_FACE_OVAL, 
+  FACEMESH_LEFT_EYE, 
+  FACEMESH_LEFT_EYEBROW, 
+  FACEMESH_LEFT_IRIS,
+  FACEMESH_RIGHT_EYE, 
+  FACEMESH_RIGHT_EYEBROW, 
+  FACEMESH_RIGHT_IRIS,
+  FACEMESH_LIPS,
+  FACEMESH_NOSE
+} from "@mediapipe/face_mesh";
 
 export default function useARFilters(canvasCtxRef) {
   const filters = ref({
@@ -10,138 +22,159 @@ export default function useARFilters(canvasCtxRef) {
     faceMeasurement: false,
   });
 
-  const drawFullLipstick = (landmarks, canvasElement) => {
-    if (!landmarks || landmarks.length === 0) return;
+  const drawFullLipstick = (faceLandmarks, canvasElement) => {
+    if (!faceLandmarks?.length) return;
 
+    const ctx = canvasCtxRef.value; 
     const canvasWidth = canvasElement.width;
     const canvasHeight = canvasElement.height;
 
-    const toCanvasCoords = (index) => {
-      const point = landmarks[index];
-      return [point.x * canvasWidth, point.y * canvasHeight];
-    };
+    // Convert a landmark index into pixel coordinates on the canvas
+    const toCanvasCoords = (index) => [
+      faceLandmarks[index].x * canvasWidth,
+      faceLandmarks[index].y * canvasHeight,
+    ];
 
-    const outerUpperLip = [61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291];
-    const outerLowerLip = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291];
-    const innerUpperLip = [78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308];
-    const innerLowerLip = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
+    // Use MediaPipe's predefined lip connections for consistency
+    const outerLipIndices = [
+      61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291,
+      375, 321, 405, 314, 17, 84, 181, 91, 146,
+    ];
 
-    canvasCtxRef.value.save();
-    canvasCtxRef.value.fillStyle = "rgba(139, 25, 69, 0.6)";
-    canvasCtxRef.value.beginPath();
+    const innerLipIndices = [
+      78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308,
+      415, 310, 311, 312, 13, 82, 81, 80, 191,
+    ];
 
-    const allOuter = [...outerUpperLip, ...outerLowerLip.reverse()];
-    let [startX, startY] = toCanvasCoords(allOuter[0]);
-    canvasCtxRef.value.moveTo(startX, startY);
-    for (let i = 1; i < allOuter.length; i++) {
-      const [x, y] = toCanvasCoords(allOuter[i]);
-      canvasCtxRef.value.lineTo(x, y);
-    }
-    canvasCtxRef.value.closePath();
+    ctx.save();
+    ctx.fillStyle = "rgba(139, 25, 69, 0.6)";
+    ctx.beginPath();
 
-    canvasCtxRef.value.moveTo(...toCanvasCoords(innerUpperLip[0]));
-    for (let i = 1; i < innerUpperLip.length; i++) {
-      const [x, y] = toCanvasCoords(innerUpperLip[i]);
-      canvasCtxRef.value.lineTo(x, y);
-    }
-    for (let i = 0; i < innerLowerLip.length; i++) {
-      const [x, y] = toCanvasCoords(innerLowerLip[i]);
-      canvasCtxRef.value.lineTo(x, y);
-    }
-    canvasCtxRef.value.closePath();
+    // Draw outer lip polygon
+    ctx.moveTo(...toCanvasCoords(outerLipIndices[0]));
+    outerLipIndices.slice(1).forEach((index) => {
+      ctx.lineTo(...toCanvasCoords(index));
+    });
+    ctx.closePath();
 
-    canvasCtxRef.value.fill("evenodd");
-    canvasCtxRef.value.restore();
+    // Draw inner lip polygon (to cut a hole)
+    ctx.moveTo(...toCanvasCoords(innerLipIndices[0]));
+    innerLipIndices.slice(1).forEach((index) => {
+      ctx.lineTo(...toCanvasCoords(index));
+    });
+    ctx.closePath();
+
+    ctx.fill("evenodd");
+    ctx.restore();
   };
 
   const drawEyeliner = (landmarks, canvasElement) => {
-    if (!landmarks || landmarks.length === 0) return;
+    if (!landmarks || landmarks.length === 0) {
+      console.log("Eyeliner: No landmarks provided");
+      return;
+    }
 
-    const canvasWidth = canvasElement.width;
-    const canvasHeight = canvasElement.height;
+    // FACEMESH_LEFT_EYE and FACEMESH_RIGHT_EYE provide the eye outlines
+    
+    // Draw left eye outline (which serves as eyeliner)
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_LEFT_EYE, {
+      color: "#000000",
+      lineWidth: 2,  // Even thicker for visibility
+    });
 
-    const toCanvasCoords = (index) => {
-      const point = landmarks[index];
-      return [point.x * canvasWidth, point.y * canvasHeight];
-    };
+    // Draw right eye outline (which serves as eyeliner)
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_RIGHT_EYE, {
+      color: "#000000",
+      lineWidth: 2,  // Even thicker for visibility
+    });
 
-    const drawEyeLinerPath = (indices) => {
-      canvasCtxRef.value.beginPath();
-      const [startX, startY] = toCanvasCoords(indices[0]);
-      canvasCtxRef.value.moveTo(startX, startY);
-
-      for (let i = 1; i < indices.length; i++) {
-        const [x, y] = toCanvasCoords(indices[i]);
-        canvasCtxRef.value.lineTo(x, y);
-      }
-
-      canvasCtxRef.value.stroke();
-    };
-
-    canvasCtxRef.value.save();
-    canvasCtxRef.value.strokeStyle = "rgba(0, 0, 0, 0.7)";
-    canvasCtxRef.value.lineWidth = 2;
-    canvasCtxRef.value.lineCap = "round";
-
-    drawEyeLinerPath([33, 160, 158, 133]);
-    drawEyeLinerPath([263, 387, 385, 362]);
-
-    canvasCtxRef.value.restore();
+    console.log("Eyeliner drawn successfully");
   };
 
   const drawFaceMesh = (landmarks, canvasElement) => {
     if (!landmarks || landmarks.length === 0) return;
 
-    const canvasWidth = canvasElement.width;
-    const canvasHeight = canvasElement.height;
+    // Draw face oval
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_FACE_OVAL, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    const toCanvasCoords = (index) => {
-      const point = landmarks[index];
-      return [point.x * canvasWidth, point.y * canvasHeight];
-    };
+    // Draw left eye
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_LEFT_EYE, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    const drawPath = (indices, closed = false) => {
-      canvasCtxRef.value.beginPath();
-      const [startX, startY] = toCanvasCoords(indices[0]);
-      canvasCtxRef.value.moveTo(startX, startY);
-      for (let i = 1; i < indices.length; i++) {
-        const [x, y] = toCanvasCoords(indices[i]);
-        canvasCtxRef.value.lineTo(x, y);
-      }
-      if (closed) canvasCtxRef.value.closePath();
-      canvasCtxRef.value.stroke();
-    };
+    // Draw right eye
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_RIGHT_EYE, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    canvasCtxRef.value.save();
-    canvasCtxRef.value.strokeStyle = "rgba(0, 255, 0, 0.5)";
-    canvasCtxRef.value.lineWidth = 1;
+    // Draw left eyebrow
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_LEFT_EYEBROW, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    drawPath([234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288]);
-    drawPath([70, 63, 105, 66, 107], false);
-    drawPath([336, 296, 334, 293, 300], false);
-    drawPath([33, 160, 158, 133, 153, 144, 163, 7], true);
-    drawPath([263, 387, 385, 362, 380, 373, 390, 249], true);
-    drawPath([61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291], false);
-    drawPath([61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291], false);
-    drawPath([78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308], false);
-    drawPath([78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308], false);
-    drawPath([168, 6, 197, 195, 5, 4, 1, 19, 94, 2]);
+    // Draw right eyebrow
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_RIGHT_EYEBROW, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    canvasCtxRef.value.restore();
+    // Draw left iris
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_LEFT_IRIS, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
 
-    canvasCtxRef.value.fillStyle = "rgba(255, 0, 0, 0.5)";
-    for (let i = 0; i < landmarks.length; i++) {
-      const [x, y] = toCanvasCoords(i);
-      canvasCtxRef.value.beginPath();
-      canvasCtxRef.value.arc(x, y, 1.2, 0, 2 * Math.PI);
-      canvasCtxRef.value.fill();
-    }
+    // Draw right iris
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_RIGHT_IRIS, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
+
+    // Draw lips
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_LIPS, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
+
+    // Draw nose
+    draw.drawConnectors(canvasCtxRef.value, landmarks, FACEMESH_NOSE, {
+      color: "#00FF00",
+      lineWidth: 1,
+    });
+
+    // Draw all landmarks as red dots
+    draw.drawLandmarks(canvasCtxRef.value, landmarks, {
+      color: "#FF0000",
+      lineWidth: 1,
+      radius: 1.2,
+    });
   };
 
   const applyFilters = (landmarks, canvasElement) => {
-    if (filters.value.lipstick) drawFullLipstick(landmarks, canvasElement);
-    if (filters.value.eyeliner) drawEyeliner(landmarks, canvasElement);
-    if (filters.value.facemesh) drawFaceMesh(landmarks, canvasElement);
+    console.log("Applying filters:", {
+      lipstick: filters.value.lipstick,
+      eyeliner: filters.value.eyeliner,
+      facemesh: filters.value.facemesh
+    });
+
+    if (filters.value.lipstick) {
+      console.log("Drawing lipstick");
+      drawFullLipstick(landmarks, canvasElement);
+    }
+    if (filters.value.eyeliner) {
+      console.log("Drawing eyeliner");
+      drawEyeliner(landmarks, canvasElement);
+    }
+    if (filters.value.facemesh) {
+      console.log("Drawing face mesh");
+      drawFaceMesh(landmarks, canvasElement);
+    }
   };
 
   return {
