@@ -11,34 +11,31 @@ import {
 } from "@mediapipe/face_mesh";
 
 export default function useMediaPipe() {
+  // Refs for elements and states
   let frameImage = new Image();
   const input_video = ref(null);
   const output_canvas = ref(null);
-  const threejs_container = ref(null); //remove
+  const threejs_container = ref(null); // remove if not needed
   const faceDetected = ref(false);
 
-  // PD Measurement
+  // Measurement refs
   const detectedPD_L = ref(0);
   const detectedPD_R = ref(0);
   const detectedPD = ref(0);
-
-  // Bridge measurement
   const detectedBridge = ref(0);
-
-  // A measurement
   const detectedWidth = ref(0);
 
-  // Moving average
+  // Rolling averages
   const rollingAverage = ref({
     pd: [],
     pd_l: [],
     pd_r: [],
     bridge: [],
-    width: [], // temple width
-    height: [], // height of face in center
+    width: [],
+    height: [],
   });
 
-  // Iris measurements
+  // Iris related refs
   const irisSize = ref(12.2);
   const irisConstant_left = ref(0);
   const irisConstant_right = ref(0);
@@ -46,19 +43,17 @@ export default function useMediaPipe() {
   const irisConstant_min = ref(0);
   const irisConstant_avg = ref(0);
 
-  // Landmarks for iris
+  // Landmark indices
   const leftInnerIrisEdge = ref(469);
   const leftOuterIrisEdge = ref(471);
   const rightInnerIrisEdge = ref(476);
   const rightOuterIrisEdge = ref(474);
   const leftIris = ref(468);
   const rightIris = ref(473);
-
-  // Landmarks for temple
   const leftTemple = ref(143);
   const rightTemple = ref(372);
 
-  // Messages
+  // Messages for countdown
   const messages = ref([
     "",
     "Are you ready?",
@@ -70,7 +65,8 @@ export default function useMediaPipe() {
   ]);
   const currentIndex = ref(0);
   const showMessage = ref(false);
-  // Virtual try-on
+
+  // Virtual Try-On refs
   const isTryOn = ref(false);
   const imageAspectRatio = ref(null);
   const glassesTexture = ref(null);
@@ -91,24 +87,24 @@ export default function useMediaPipe() {
   const vtoRotationY = ref(null);
   const vtoLeftTopLandmark = ref(8);
 
-  // Video and canvas elements
+  // Video and canvas
   const videoElement = ref(null);
   const canvasElement = ref(null);
   const canvasCtx = ref(null);
 
-  // Orientation and camera
+  // Orientation and instances
   const isOriented = ref(false);
   let faceMesh = null;
   let holistic = null;
   let camera = null;
   const isCameraOn = ref(false);
 
-  // Three.js properties
+  // Three.js instances
   let scene = null;
   let threeJSCamera = null;
   let renderer = null;
 
-  // Other properties
+  // Other refs
   const zDampingFactor = ref(0.6);
   const xDampingFactor = ref(0.8);
   const yDampingFactor = ref(0.6);
@@ -126,15 +122,15 @@ export default function useMediaPipe() {
     facemesh: false,
     facialShape: false,
   });
-  const init = () => {
-    // mediapipe initialization
+
+  // Initialization functions
+  const initMediaPipe = () => {
     videoElement.value = input_video.value;
     canvasElement.value = output_canvas.value;
     canvasCtx.value = canvasElement.value.getContext("2d");
+
     holistic = new Holistic({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`;
-      },
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/holistic/${file}`,
     });
     holistic.setOptions({
       modelComplexity: 1,
@@ -145,9 +141,7 @@ export default function useMediaPipe() {
     holistic.onResults(onResults);
 
     faceMesh = new FaceMesh({
-      locateFile: (file) => {
-        return `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`;
-      },
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
     });
     faceMesh.setOptions({
       selfieMode: true,
@@ -163,8 +157,9 @@ export default function useMediaPipe() {
         await faceMesh.send({ image: videoElement.value });
       },
     });
+  };
 
-    // threejs initialization
+  const initThreeJS = () => {
     scene = new THREE.Scene();
     const FOV = getFOV();
     threeJSCamera = new THREE.PerspectiveCamera(
@@ -181,14 +176,17 @@ export default function useMediaPipe() {
       canvasElement.value.clientHeight,
       false
     );
-    // threejs_container.value.appendChild(renderer.domElement);
-    document
-      .getElementById("threejs-container-vto")
-      .appendChild(renderer.domElement);
+    document.getElementById("threejs-container-vto").appendChild(renderer.domElement);
 
     animate();
   };
 
+  const init = () => {
+    initMediaPipe();
+    initThreeJS();
+  };
+
+  // Size update
   const updateSize = () => {
     const width = canvasElement.value?.clientWidth;
     const height = canvasElement.value?.clientHeight;
@@ -207,13 +205,10 @@ export default function useMediaPipe() {
       threeJSCamera.updateProjectionMatrix();
 
       renderer.setSize(width, height, false);
-
-      console.log(`Updated size: ${width} x ${height}`);
-    } else {
-      console.error("Canvas has zero width or height, size update skipped");
     }
   };
 
+  // Animation loop
   const animate = () => {
     requestAnimationFrame(animate);
     if (renderer && scene && threeJSCamera) {
@@ -222,10 +217,10 @@ export default function useMediaPipe() {
     }
   };
 
+  // Render Virtual Try-On
   const renderTryOn = () => {
-    if (isTryOn.value) {
+    if (isTryOn.value && glassesMesh) {
       const nullProperties = [];
-
       if (vtoWidth.value === null) nullProperties.push("vtoWidth");
       if (vtoNormalizedX.value === null) nullProperties.push("vtoNormalizedX");
       if (vtoNormalizedY.value === null) nullProperties.push("vtoNormalizedY");
@@ -233,41 +228,29 @@ export default function useMediaPipe() {
 
       if (nullProperties.length === 0) {
         const { yaw, pitch, roll } = headPose.value;
-        // Position
         glassesMesh.position.set(
           vtoNormalizedX.value,
           vtoNormalizedY.value / 2 - 0.05,
           0.05
         );
-        // Scale
         glassesMesh.scale.set(vtoWidth.value, vtoWidth.value, 1);
-        // Rotation
         const adjustedPitch = pitch + Math.PI / 2 + Math.PI / 8;
         glassesMesh.rotation.set(
           -Math.sin(adjustedPitch),
           vtoRotationZ.value,
           Math.cos(roll)
         );
-        // Visibility
         glassesMesh.visible = true;
       } else {
-        console.log(
-          `mesh is NOT visible due to null properties: ${nullProperties.join(
-            ", "
-          )}`
-        );
-        if (glassesMesh) {
-          glassesMesh.visible = false;
-        }
-      }
-    } else {
-      if (glassesMesh) {
         glassesMesh.visible = false;
       }
+    } else if (glassesMesh) {
+      glassesMesh.visible = false;
     }
   };
 
-  const onResults = (results) => {
+  // Results handling broken into smaller functions
+  const prepareCanvas = (results) => {
     if (!canvasElement.value || !videoElement.value || !canvasCtx.value) return;
 
     canvasElement.value.width = videoElement.value.videoWidth;
@@ -275,12 +258,7 @@ export default function useMediaPipe() {
     faceDetected.value = false;
 
     canvasCtx.value.save();
-    canvasCtx.value.clearRect(
-      0,
-      0,
-      canvasElement.value.width,
-      canvasElement.value.height
-    );
+    canvasCtx.value.clearRect(0, 0, canvasElement.value.width, canvasElement.value.height);
     canvasCtx.value.drawImage(
       results.image,
       0,
@@ -288,277 +266,159 @@ export default function useMediaPipe() {
       canvasElement.value.width,
       canvasElement.value.height
     );
+  };
 
-    if (results.multiFaceLandmarks.length > 0) {
-      for (const landmarks of results.multiFaceLandmarks) {
-        faceDetected.value = true;
-        console.log(faceDetected.value);
+  const drawIrisConnectorsAndCircles = (landmarks) => {
+    draw.drawConnectors(canvasCtx.value, landmarks, FACEMESH_RIGHT_IRIS, {
+      color: "#30FF30",
+      lineWidth: 0.25,
+    });
+    draw.drawConnectors(canvasCtx.value, landmarks, FACEMESH_LEFT_IRIS, {
+      color: "#30FF30",
+      lineWidth: 0.25,
+    });
 
-        const leftIrisRelativeDistance = calculateDistance(
-          landmarks[leftInnerIrisEdge.value],
-          landmarks[leftOuterIrisEdge.value]
-        );
-        const rightIrisRelativeDistance = calculateDistance(
-          landmarks[rightInnerIrisEdge.value],
-          landmarks[rightOuterIrisEdge.value]
-        );
+    const x_l = landmarks[leftIris.value].x * canvasElement.value.width;
+    const y_l = landmarks[leftIris.value].y * canvasElement.value.height;
+    const x_r = landmarks[rightIris.value].x * canvasElement.value.width;
+    const y_r = landmarks[rightIris.value].y * canvasElement.value.height;
 
-        draw.drawConnectors(canvasCtx.value, landmarks, FACEMESH_RIGHT_IRIS, {
-          color: "#30FF30",
-          lineWidth: 0.25,
-        });
-        draw.drawConnectors(canvasCtx.value, landmarks, FACEMESH_LEFT_IRIS, {
-          color: "#30FF30",
-          lineWidth: 0.25,
-        });
+    const leftIrisRelativeDistance = calculateDistance(
+      landmarks[leftInnerIrisEdge.value],
+      landmarks[leftOuterIrisEdge.value]
+    );
+    const rightIrisRelativeDistance = calculateDistance(
+      landmarks[rightInnerIrisEdge.value],
+      landmarks[rightOuterIrisEdge.value]
+    );
 
-        const x_l = landmarks[leftIris.value].x * canvasElement.value.width;
-        const y_l = landmarks[leftIris.value].y * canvasElement.value.height;
-        const x_r = landmarks[rightIris.value].x * canvasElement.value.width;
-        const y_r = landmarks[rightIris.value].y * canvasElement.value.height;
+    canvasCtx.value.strokeStyle = "red";
+    canvasCtx.value.lineWidth = 1;
+    canvasCtx.value.beginPath();
+    canvasCtx.value.arc(x_l, y_l, leftIrisRelativeDistance, 0, 2 * Math.PI);
+    canvasCtx.value.stroke();
 
-        canvasCtx.value.strokeStyle = "red";
-        canvasCtx.value.lineWidth = 1;
-        canvasCtx.value.beginPath();
-        canvasCtx.value.arc(x_l, y_l, leftIrisRelativeDistance, 0, 2 * Math.PI);
-        canvasCtx.value.stroke();
+    canvasCtx.value.beginPath();
+    canvasCtx.value.arc(x_r, y_r, rightIrisRelativeDistance, 0, 2 * Math.PI);
+    canvasCtx.value.stroke();
+  };
 
-        canvasCtx.value.beginPath();
-        canvasCtx.value.arc(
-          x_r,
-          y_r,
-          rightIrisRelativeDistance,
-          0,
-          2 * Math.PI
-        );
-        canvasCtx.value.stroke();
+  const checkOrientation = (landmarks) => {
+    const cheek_z_l = landmarks[leftTemple.value].z;
+    const cheek_z_r = landmarks[rightTemple.value].z;
+    compareZDeviation(cheek_z_l, cheek_z_r, 0.01);
+  };
 
-        const cheek_z_l = landmarks[leftTemple.value].z;
-        const cheek_z_r = landmarks[rightTemple.value].z;
-        const templeColor = compareZDeviation(cheek_z_l, cheek_z_r, 0.01);
+  const calculateIrisConstants = (landmarks) => {
+    const leftIrisRelativeDistance = calculateDistance(
+      landmarks[leftInnerIrisEdge.value],
+      landmarks[leftOuterIrisEdge.value]
+    );
+    const rightIrisRelativeDistance = calculateDistance(
+      landmarks[rightInnerIrisEdge.value],
+      landmarks[rightOuterIrisEdge.value]
+    );
 
-        // if (displayFaceAlignmentMessage.value) {
-        //   const elements = document.getElementsByClassName(
-        //     output_selector_faceAlignment.value
-        //   );
-        //   if (!isOriented.value) elements[0]?.classList.remove("d-none");
-        //   else elements[0]?.classList.add("d-none");
-        // }
+    irisConstant_left.value = irisSize.value / leftIrisRelativeDistance;
+    irisConstant_right.value = irisSize.value / rightIrisRelativeDistance;
+    irisConstant_max.value = Math.max(irisConstant_left.value, irisConstant_right.value);
+    irisConstant_min.value = Math.min(irisConstant_left.value, irisConstant_right.value);
+    irisConstant_avg.value = (irisConstant_left.value + irisConstant_right.value) / 2;
+  };
 
-        if (showEyeBridgeMid.value) {
-          const noseBridgeLeft = landmarks[100];
-          const noseBridgeRight = landmarks[338];
-          const noseBridgeMid = findMidPoint(noseBridgeLeft, noseBridgeRight);
+  const calculatePDs = (landmarks) => {
+    const bridgeMid = findMidPoint(landmarks[leftIris.value], landmarks[rightIris.value]);
+    const irisRelativeDistanceLeft = calculateDistance(landmarks[leftIris.value], bridgeMid, false);
+    const irisRelativeDistanceRight = calculateDistance(landmarks[rightIris.value], bridgeMid, false);
 
-          const noseBridgeMidX = noseBridgeMid.x * canvasElement.value.width;
-          const noseBridgeMidY = noseBridgeMid.y * canvasElement.value.height;
-          const scaleFactorNormalized = calculateDistance(
-            landmarks[leftTemple.value],
-            landmarks[rightTemple.value]
-          );
-          const outerRadius = 50 * scaleFactorNormalized;
+    let pd_left = irisConstant_left.value * irisRelativeDistanceLeft * 2;
+    let pd_right = irisConstant_right.value * irisRelativeDistanceRight * 2;
 
-          canvasCtx.value.strokeStyle = "red";
-          canvasCtx.value.lineWidth = 2;
-          canvasCtx.value.lineCap = "round";
-          canvasCtx.value.lineJoin = "round";
-          const targetX = noseBridgeMidX + 3;
-          const targetY = noseBridgeMidY + 15;
-        }
+    detectedPD_L.value = addDataPointSize(rollingAverage.value, "pd_l", pd_left, 500);
+    detectedPD_R.value = addDataPointSize(rollingAverage.value, "pd_r", pd_right, 500);
+    detectedPD.value = addDataPointSize(rollingAverage.value, "pd", (pd_left + pd_right) / 2, 500);
+  };
 
-        irisConstant_left.value = irisSize.value / leftIrisRelativeDistance;
-        irisConstant_right.value = irisSize.value / rightIrisRelativeDistance;
-        irisConstant_max.value = Math.max(
-          irisConstant_left.value,
-          irisConstant_right.value
-        );
-        irisConstant_min.value = Math.min(
-          irisConstant_left.value,
-          irisConstant_right.value
-        );
-        irisConstant_avg.value =
-          (irisConstant_left.value + irisConstant_right.value) / 2;
+  const calculateWidths = (landmarks) => {
+    const templeMidPoint = findMidPoint(landmarks[leftTemple.value], landmarks[rightTemple.value]);
+    const detectedWidth_L = calculateDistance(landmarks[leftTemple.value], templeMidPoint, false) * irisConstant_left.value;
+    const detectedWidth_R = calculateDistance(landmarks[rightTemple.value], templeMidPoint, false) * irisConstant_right.value;
 
-        const bridgeMid = findMidPoint(
-          landmarks[leftIris.value],
-          landmarks[rightIris.value]
-        );
-        const irisRelativeDistanceLeft = calculateDistance(
-          landmarks[leftIris.value],
-          bridgeMid,
-          false
-        );
-        const irisRelativeDistanceRight = calculateDistance(
-          landmarks[rightIris.value],
-          bridgeMid,
-          false
-        );
+    detectedWidth.value = addDataPointSize(rollingAverage.value, "width", detectedWidth_L + detectedWidth_R, 500);
 
-        let pd_left = irisConstant_left.value * irisRelativeDistanceLeft * 2;
-        let pd_right = irisConstant_right.value * irisRelativeDistanceRight * 2;
-
-        // const pdOutput = document.getElementsByClassName(
-        //   output_selector_pd.value
-        // )[0];
-        // if (pdOutput && getFaceShape.value) {
-        //   pdOutput.innerHTML = `${detectedPD.value.toFixed(
-        //     1
-        //   )} <small class="text-muted">mm</small>`;
-        // }
-        // document.getElementsByClassName(
-        //   output_selector_pd_l.value
-        // )[0].innerHTML = `${detectedPD_L.value.toFixed(
-        //   1
-        // )} <small class="text-muted">mm</small>`;
-        // document.getElementsByClassName(
-        //   output_selector_pd_r.value
-        // )[0].innerHTML = `${detectedPD_R.value.toFixed(
-        //   1
-        // )} <small class="text-muted">mm</small>`;
-
-        const templeMidPoint = findMidPoint(
-          landmarks[leftTemple.value],
-          landmarks[rightTemple.value]
-        );
-        const detectedWidth_L =
-          calculateDistance(
-            landmarks[leftTemple.value],
-            templeMidPoint,
-            false
-          ) * irisConstant_left.value;
-        const detectedWidth_R =
-          calculateDistance(
-            landmarks[rightTemple.value],
-            templeMidPoint,
-            false
-          ) * irisConstant_right.value;
-
-        // document.getElementsByClassName(
-        //   output_selector_width.value
-        // )[0].innerHTML = `${detectedWidth.value.toFixed(
-        //   1
-        // )} <small class="text-muted">mm</small>`;
-
-        // if (
-        //   document.getElementsByClassName(output_selector_size.value)[0] &&
-        //   getFaceShape.value
-        // ) {
-        //   const b_measurement = detectedWidth.value;
-        //   if (b_measurement < 108) faceSize.value = "Petite";
-        //   else if (b_measurement <= 113) faceSize.value = "Small";
-        //   else if (b_measurement <= 127) faceSize.value = "Medium";
-        //   else faceSize.value = "Large";
-        // }
-
-        vtoRotationX.value = angleFromXAxis(
-          landmarks[leftTemple.value],
-          landmarks[rightTemple.value],
-          xDampingFactor.value
-        );
-        vtoRotationZ.value = angleFromZAxis(
-          landmarks[leftTemple.value],
-          landmarks[rightTemple.value],
-          zDampingFactor.value
-        );
-        vtoRotationY.value = angleFromYAxis(
-          landmarks[leftTemple.value],
-          landmarks[rightTemple.value],
-          yDampingFactor.value
-        );
-
-        // document.getElementsByClassName(
-        //   output_selector_rotation.value
-        // )[0].innerHTML = `${vtoRotationX.value.toFixed(
-        //   1
-        // )} / ${vtoRotationZ.value.toFixed(
-        //   1
-        // )} <small class="text-muted">rad</small>`;
-
-        vtoX.value =
-          landmarks[vtoLeftTopLandmark.value].x * canvasElement.value.width;
-        vtoY.value =
-          landmarks[vtoLeftTopLandmark.value].y * canvasElement.value.height;
-        vtoZ.value =
-          1 /
-          (Math.abs(landmarks[vtoLeftTopLandmark.value].z) *
-            irisConstant_avg.value);
-        vtoNormalizedX.value = (vtoX.value / canvasElement.value.width) * 2 - 1;
-        vtoNormalizedY.value = -(
-          (vtoY.value / canvasElement.value.height) * 2 -
-          1
-        );
-
-        vtoAspectRatio.value =
-          canvasElement.value.width / canvasElement.value.height;
-
-        const normalizedLeftTemple = {
-          x: (landmarks[leftTemple.value].x * 2 - 1) * vtoAspectRatio.value,
-          y: -(landmarks[leftTemple.value].y * 2 - 1),
-          z: landmarks[leftTemple.value].z,
-        };
-        const normalizedRightTemple = {
-          x: (landmarks[rightTemple.value].x * 2 - 1) * vtoAspectRatio.value,
-          y: -(landmarks[rightTemple.value].y * 2 - 1),
-          z: landmarks[rightTemple.value].z,
-        };
-        const normalizedMidTemple = {
-          x: (templeMidPoint.x * 2 - 1) * vtoAspectRatio.value,
-          y: -(templeMidPoint.y * 2 - 1),
-          z: templeMidPoint.z,
-        };
-
-        vtoWidth.value =
-          calculateDistance(normalizedLeftTemple, normalizedMidTemple, false) +
-          calculateDistance(normalizedRightTemple, normalizedMidTemple, false);
-        vtoWidth.value *= sizeScaleFactor.value;
-
-        detectedPD_L.value = addDataPointSize(
-          rollingAverage.value,
-          "pd_l",
-          pd_left,
-          500
-        );
-        detectedPD_R.value = addDataPointSize(
-          rollingAverage.value,
-          "pd_r",
-          pd_right,
-          500
-        );
-        detectedPD.value = addDataPointSize(
-          rollingAverage.value,
-          "pd",
-          (pd_left + pd_right) / 2,
-          500
-        );
-        detectedWidth.value = addDataPointSize(
-          rollingAverage.value,
-          "width",
-          detectedWidth_L + detectedWidth_R,
-          500
-        );
-
-        const headPoseData = calculateHeadPose(landmarks);
-        headPose.value = headPoseData;
-        if (filters.value.lipstick) {
-          drawFullLipstick(landmarks);
-        }
-        if (filters.value.eyeliner) {
-          drawEyeliner(landmarks);
-        }
-        if (filters.value.facemesh) {
-          drawFaceMesh(landmarks);
-        }
-
-        determineFaceShape(landmarks);
-
-        // drawFaceMesh(landmarks);
-        // drawSpectacles(landmarks, headPoseData);
-      }
+    if (getFaceShape.value) {
+      const b_measurement = detectedWidth.value;
+      if (b_measurement < 108) faceSize.value = "Petite";
+      else if (b_measurement <= 113) faceSize.value = "Small";
+      else if (b_measurement <= 127) faceSize.value = "Medium";
+      else faceSize.value = "Large";
     }
+  };
 
+  const updateRotations = (landmarks) => {
+    vtoRotationX.value = angleFromXAxis(landmarks[leftTemple.value], landmarks[rightTemple.value], xDampingFactor.value);
+    vtoRotationZ.value = angleFromZAxis(landmarks[leftTemple.value], landmarks[rightTemple.value], zDampingFactor.value);
+    vtoRotationY.value = angleFromYAxis(landmarks[leftTemple.value], landmarks[rightTemple.value], yDampingFactor.value);
+  };
+
+  const normalizePoints = (landmarks) => {
+    vtoX.value = landmarks[vtoLeftTopLandmark.value].x * canvasElement.value.width;
+    vtoY.value = landmarks[vtoLeftTopLandmark.value].y * canvasElement.value.height;
+    vtoZ.value = 1 / (Math.abs(landmarks[vtoLeftTopLandmark.value].z) * irisConstant_avg.value);
+    vtoNormalizedX.value = (vtoX.value / canvasElement.value.width) * 2 - 1;
+    vtoNormalizedY.value = -((vtoY.value / canvasElement.value.height) * 2 - 1);
+
+    vtoAspectRatio.value = canvasElement.value.width / canvasElement.value.height;
+
+    const templeMidPoint = findMidPoint(landmarks[leftTemple.value], landmarks[rightTemple.value]);
+
+    const normalizedLeftTemple = {
+      x: (landmarks[leftTemple.value].x * 2 - 1) * vtoAspectRatio.value,
+      y: -(landmarks[leftTemple.value].y * 2 - 1),
+      z: landmarks[leftTemple.value].z,
+    };
+    const normalizedRightTemple = {
+      x: (landmarks[rightTemple.value].x * 2 - 1) * vtoAspectRatio.value,
+      y: -(landmarks[rightTemple.value].y * 2 - 1),
+      z: landmarks[rightTemple.value].z,
+    };
+    const normalizedMidTemple = {
+      x: (templeMidPoint.x * 2 - 1) * vtoAspectRatio.value,
+      y: -(templeMidPoint.y * 2 - 1),
+      z: templeMidPoint.z,
+    };
+
+    vtoWidth.value = calculateDistance(normalizedLeftTemple, normalizedMidTemple, false) + calculateDistance(normalizedRightTemple, normalizedMidTemple, false);
+    vtoWidth.value *= sizeScaleFactor.value;
+  };
+
+  const applyFilters = (landmarks) => {
+    if (filters.value.lipstick) drawFullLipstick(landmarks);
+    if (filters.value.eyeliner) drawEyeliner(landmarks);
+    if (filters.value.facemesh) drawFaceMesh(landmarks);
+  };
+
+  const handleLandmarks = (landmarks) => {
+    faceDetected.value = true;
+
+    drawIrisConnectorsAndCircles(landmarks);
+    checkOrientation(landmarks);
+    calculateIrisConstants(landmarks);
+    calculatePDs(landmarks);
+    calculateWidths(landmarks);
+    updateRotations(landmarks);
+    normalizePoints(landmarks);
+
+    const headPoseData = calculateHeadPose(landmarks);
+    headPose.value = headPoseData;
+
+    applyFilters(landmarks);
+    determineFaceShape(landmarks);
+  };
+
+  const drawMessage = () => {
     if (showMessage.value) {
-      canvasCtx.value.font =
-        currentIndex.value < 3 ? "48px Arial" : "96px Arial";
+      canvasCtx.value.font = currentIndex.value < 3 ? "48px Arial" : "96px Arial";
       canvasCtx.value.fillStyle = "white";
       canvasCtx.value.textAlign = "center";
       canvasCtx.value.fillText(
@@ -567,18 +427,28 @@ export default function useMediaPipe() {
         canvasElement.value.height / 2
       );
     }
+  };
 
+  const onResults = (results) => {
+    prepareCanvas(results);
+
+    if (results.multiFaceLandmarks.length > 0) {
+      for (const landmarks of results.multiFaceLandmarks) {
+        handleLandmarks(landmarks);
+      }
+    }
+
+    drawMessage();
     canvasCtx.value.restore();
   };
 
+  // Other helper functions remain the same
   const compareZDeviation = (cheek_z_l, cheek_z_r, threshold) => {
     const deviation = Math.abs(cheek_z_l - cheek_z_r);
 
     if (deviation > threshold) {
       isOriented.value = false;
-      return cheek_z_l > cheek_z_r
-        ? { left: "red", right: "blue" }
-        : { left: "blue", right: "red" };
+      return cheek_z_l > cheek_z_r ? { left: "red", right: "blue" } : { left: "blue", right: "red" };
     } else {
       isOriented.value = true;
       return { left: "blue", right: "blue" };
@@ -625,7 +495,6 @@ export default function useMediaPipe() {
   };
 
   const start = () => {
-    // Implement camera start logic here
     camera.start();
     isCameraOn.value = true;
   };
@@ -656,16 +525,10 @@ export default function useMediaPipe() {
         glassesWidth.value,
         glassesHeight.value
       );
-      glassesMesh = new THREE.Mesh(
-        glassesGeometry.value,
-        glassesMaterial.value
-      );
+      glassesMesh = new THREE.Mesh(glassesGeometry.value, glassesMaterial.value);
       scene.add(glassesMesh);
 
       isTryOn.value = true;
-      if (isTryOn.value) {
-        console.log(`VTO ON: ${imageUrl} ${img.width} x ${img.height}`);
-      }
     };
   };
 
@@ -694,26 +557,6 @@ export default function useMediaPipe() {
       scene.remove(glassesMesh);
       glassesMesh = null;
     }
-  };
-
-  const displayMessage = (messages, rollingAvgPD, callback) => {
-    let currentIndex = 0;
-    const showMessage = ref(true);
-
-    const nextMessage = () => {
-      currentIndex++;
-      if (currentIndex < messages.length) {
-        setTimeout(nextMessage, 1000);
-      } else {
-        showMessage.value = false;
-        // document.getElementById("ipd-measurement").innerHTML = `${Math.round(
-        //   rollingAvgPD
-        // )}`;
-        if (callback) callback();
-      }
-    };
-
-    nextMessage();
   };
 
   const euclideanDistance = (point1, point2) => {
@@ -753,60 +596,30 @@ export default function useMediaPipe() {
   const determineFaceShape = (landmarks) => {
     const faceLength = euclideanDistance(landmarks[10], landmarks[152]);
     const faceWidth = euclideanDistance(landmarks[234], landmarks[454]);
-    const jawlineAngle = calculateAngle(
-      landmarks[234],
-      landmarks[152],
-      landmarks[454]
-    ).toFixed(2);
+    const jawlineAngle = calculateAngle(landmarks[234], landmarks[152], landmarks[454]).toFixed(2);
 
     const ratio = faceWidth / faceLength;
     const widthToLengthRatio = parseFloat(ratio.toFixed(2));
-
     const angle = parseFloat(jawlineAngle);
 
-    if (
-      widthToLengthRatio >= 0.63 &&
-      widthToLengthRatio <= 0.65 &&
-      angle >= 119 &&
-      angle <= 121.99
-    ) {
+    if (widthToLengthRatio >= 0.63 && widthToLengthRatio <= 0.65 && angle >= 119 && angle <= 121.99) {
       faceShape.value = "Square";
     } else if (widthToLengthRatio <= 0.61 && angle >= 123 && angle <= 128.99) {
       faceShape.value = "Oblong";
-    } else if (
-      widthToLengthRatio >= 0.61 &&
-      widthToLengthRatio <= 0.63 &&
-      angle >= 121 &&
-      angle <= 124.99
-    ) {
+    } else if (widthToLengthRatio >= 0.61 && widthToLengthRatio <= 0.63 && angle >= 121 && angle <= 124.99) {
       faceShape.value = "Oval";
     } else if (widthToLengthRatio >= 0.68 && angle <= 120.99) {
       faceShape.value = "Round";
-    } else if (
-      widthToLengthRatio >= 0.63 &&
-      widthToLengthRatio <= 0.66 &&
-      angle >= 121 &&
-      angle <= 127.99
-    ) {
+    } else if (widthToLengthRatio >= 0.63 && widthToLengthRatio <= 0.66 && angle >= 121 && angle <= 127.99) {
       faceShape.value = "Heart";
     } else {
       faceShape.value = "Unclassified";
     }
 
-    // Optional DOM update if needed
-    // const elements = document.getElementsByClassName(outputSelectorShape.value);
-    // if (elements[0]) {
-    //   elements[0].innerHTML = faceShape.value;
-    // }
-
     return faceShape.value;
   };
-  const addDataPointSize = (
-    rollingAverage,
-    property,
-    newDataPoint,
-    maxDataPoints = 250
-  ) => {
+
+  const addDataPointSize = (rollingAverage, property, newDataPoint, maxDataPoints = 250) => {
     if (Object.prototype.hasOwnProperty.call(rollingAverage, property)) {
       rollingAverage[property].unshift(newDataPoint);
     } else {
@@ -817,46 +630,7 @@ export default function useMediaPipe() {
       rollingAverage[property].pop();
     }
 
-    return (
-      rollingAverage[property].reduce((sum, value) => sum + value, 0) /
-      rollingAverage[property].length
-    );
-  };
-
-  const destroy = (disposeGeometry) => {
-    if (isCameraOn.value && typeof stop === "function") {
-      stop();
-    }
-
-    if (renderer?.domElement?.parentNode) {
-      renderer.domElement.parentNode.removeChild(renderer.domElement);
-    }
-
-    if (disposeGeometry && typeof disposeGeometry === "function") {
-      disposeGeometry();
-    }
-
-    if (renderer) {
-      renderer.dispose();
-      renderer = null;
-    }
-
-    threeJSCamera = null;
-    scene = null;
-
-    if (holistic) {
-      holistic.close();
-      holistic = null;
-    }
-
-    if (faceMesh) {
-      faceMesh.close();
-      faceMesh = null;
-    }
-
-    videoElement.value = null;
-    canvasElement.value = null;
-    canvasCtx.value = null;
+    return rollingAverage[property].reduce((sum, value) => sum + value, 0) / rollingAverage[property].length;
   };
 
   const calculateHeadPose = (landmarks) => {
@@ -890,10 +664,9 @@ export default function useMediaPipe() {
     const innerLowerLip = [78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308];
 
     canvasCtx.value.save();
-    canvasCtx.value.fillStyle = "rgba(139, 25, 69, 0.6)"; // Soft pink lipstick
+    canvasCtx.value.fillStyle = "rgba(139, 25, 69, 0.6)";
     canvasCtx.value.beginPath();
 
-    // Outer Lip Shape (Upper + Lower)
     const allOuter = [...outerUpperLip, ...outerLowerLip.reverse()];
     let [startX, startY] = toCanvasCoords(allOuter[0]);
     canvasCtx.value.moveTo(startX, startY);
@@ -903,7 +676,6 @@ export default function useMediaPipe() {
     }
     canvasCtx.value.closePath();
 
-    // Inner Lip Shape (Upper + Lower) — for mouth opening
     canvasCtx.value.moveTo(...toCanvasCoords(innerUpperLip[0]));
     for (let i = 1; i < innerUpperLip.length; i++) {
       const [x, y] = toCanvasCoords(innerUpperLip[i]);
@@ -915,7 +687,6 @@ export default function useMediaPipe() {
     }
     canvasCtx.value.closePath();
 
-    // Fill with even-odd rule (fills outer, subtracts inner)
     canvasCtx.value.fill("evenodd");
     canvasCtx.value.restore();
   };
@@ -945,14 +716,11 @@ export default function useMediaPipe() {
     };
 
     canvasCtx.value.save();
-    canvasCtx.value.strokeStyle = "rgba(0, 0, 0, 0.7)"; // soft black
+    canvasCtx.value.strokeStyle = "rgba(0, 0, 0, 0.7)";
     canvasCtx.value.lineWidth = 2;
     canvasCtx.value.lineCap = "round";
 
-    // Left eye upper lid: 33 to 133
     drawEyeLinerPath([33, 160, 158, 133]);
-
-    // Right eye upper lid: 263 to 362
     drawEyeLinerPath([263, 387, 385, 362]);
 
     canvasCtx.value.restore();
@@ -982,42 +750,32 @@ export default function useMediaPipe() {
     };
 
     canvasCtx.value.save();
-    canvasCtx.value.strokeStyle = "rgba(0, 255, 0, 0.5)"; // light green lines
+    canvasCtx.value.strokeStyle = "rgba(0, 255, 0, 0.5)";
     canvasCtx.value.lineWidth = 1;
 
     // Jawline
-    drawPath([
-      234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379,
-      365, 397, 288,
-    ]);
+    drawPath([234, 93, 132, 58, 172, 136, 150, 149, 176, 148, 152, 377, 400, 378, 379, 365, 397, 288]);
 
     // Eyebrows
-    drawPath([70, 63, 105, 66, 107], false); // Left
-    drawPath([336, 296, 334, 293, 300], false); // Right
+    drawPath([70, 63, 105, 66, 107], false);
+    drawPath([336, 296, 334, 293, 300], false);
 
     // Eyes
-    drawPath([33, 160, 158, 133, 153, 144, 163, 7], true); // Left eye full loop
-    drawPath([263, 387, 385, 362, 380, 373, 390, 249], true); // Right eye full loop
+    drawPath([33, 160, 158, 133, 153, 144, 163, 7], true);
+    drawPath([263, 387, 385, 362, 380, 373, 390, 249], true);
 
     // Lips
-    // Upper Lip (outer)
     drawPath([61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291], false);
-
-    // Lower Lip (outer)
     drawPath([61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291], false);
-
-    // Upper Lip (inner)
     drawPath([78, 95, 88, 178, 87, 14, 317, 402, 318, 324, 308], false);
-
-    // Lower Lip (inner)
     drawPath([78, 191, 80, 81, 82, 13, 312, 311, 310, 415, 308], false);
 
-    // Nose bridge & tip
+    // Nose
     drawPath([168, 6, 197, 195, 5, 4, 1, 19, 94, 2]);
 
     canvasCtx.value.restore();
 
-    // Draw landmark points (optional)
+    // Points
     canvasCtx.value.fillStyle = "rgba(255, 0, 0, 0.5)";
     for (let i = 0; i < landmarks.length; i++) {
       const [x, y] = toCanvasCoords(i);
@@ -1026,50 +784,6 @@ export default function useMediaPipe() {
       canvasCtx.value.fill();
     }
   };
-
-  // const drawSpectacles = (landmarks, headPose) => {
-  //   const leftEye = landmarks[33];
-  //   const rightEye = landmarks[263];
-  //   const { yaw, pitch, roll } = headPose; // Assume roll is now provided
-
-  //   const canvasWidth = canvasElement.value.width;
-  //   const canvasHeight = canvasElement.value.height;
-
-  //   // Midpoint between eyes
-  //   const centerX = ((leftEye.x + rightEye.x) / 2) * canvasWidth;
-  //   const centerY = ((leftEye.y + rightEye.y) / 2) * canvasHeight;
-
-  //   // Adjust for face movement (pitch = up/down, yaw = left/right)
-  //   const adjustedX = centerX + Math.sin(yaw) * 10; // tweak sensitivity
-  //   const adjustedY = centerY - Math.sin(pitch) * 10;
-
-  //   // Calculate glasses size based on eye distance
-  //   const glassesWidth = Math.abs(rightEye.x - leftEye.x) * canvasWidth * 1.6;
-  //   const glassesHeight = glassesWidth * 0.38;
-
-  //   frameImage.src = specsImage;
-
-  //   canvasCtx.value.save();
-  //   canvasCtx.value.translate(adjustedX, adjustedY);
-
-  //   // Rotate with face roll (Z axis)
-  //   const faceRoll = roll || 0; // fallback if roll isn't available
-  //   canvasCtx.value.rotate(Math.cos(faceRoll)); // roll in radians
-
-  //   // Optionally: subtly rotate based on yaw (simulate skew)
-  //   // canvasCtx.value.rotate(yaw * 0.1); // uncomment if it looks better
-
-  //   // Draw spectacles centered at the nose bridge
-  //   canvasCtx.value.drawImage(
-  //     frameImage,
-  //     -glassesWidth / 2,
-  //     -glassesHeight / 2.5,
-  //     glassesWidth,
-  //     glassesHeight
-  //   );
-
-  //   canvasCtx.value.restore();
-  // };
 
   const getFOV = () => {
     const width = canvasElement.value?.clientWidth || 0;
@@ -1104,17 +818,16 @@ export default function useMediaPipe() {
         }
       }
 
-      return 40; // fallback
+      return 40;
     }
 
     function calculateScalingFactor(width) {
       const actualFOV = calculateFOV(width);
-      const baseFOV = calculateFOV(width); // identical in this case, might be adjusted for other logic
+      const baseFOV = calculateFOV(width);
       return baseFOV / actualFOV;
     }
 
-    const scalingFactor =
-      calculateScalingFactor(width) / (isModal.value ? 1 : 1);
+    const scalingFactor = calculateScalingFactor(width) / (isModal.value ? 1 : 1);
     const FOV = calculateFOV(width) * scalingFactor;
     return FOV + 7;
   };

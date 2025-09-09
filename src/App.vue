@@ -1,73 +1,233 @@
 <script setup>
-import { ref, onMounted } from "vue";
-import { FrameVTO } from "./plugins/mediapipe.js";
+import { ref, onMounted, watch, onUnmounted } from "vue";
 import specsImage from "./assets/specs.jpg";
-import useMediaPipe from "./composables/useMediaPipe.js";
-
-const {
-  input_video,
-  output_canvas,
-  threejs_container,
-  init,
-  updateSize,
-  start,
-  toggleCamera,
-  vtoStart,
-  frameImage,
-  faceShape,
-  filters,
-} = useMediaPipe();
+import useFaceDetection from "./composables/useFaceDetection.js";
+import useThreeJS from "./composables/useThreeJS.js";
+import useARFilters from "./composables/useARFilters.js";
+import useMeasurements from "./composables/useMeasurements.js";
+import Header from "./components/Header.vue";
+import CameraControls from "./components/CameraControls.vue";
+import Filters from "./components/Filters.vue";
+import MeasurementsModal from "./components/MeasurementsModal.vue";
 
 const videoElement = ref(null);
 const outputCanvas = ref(null);
 const threeJsContainer = ref(null);
+const isCameraOn = ref(false);
+const showMeasurements = ref(false);
 
-// Reactive states for filters
+const { 
+  initFaceDetection, 
+  startCamera, 
+  toggleCamera, 
+  faceDetected, 
+  landmarks, 
+  isCameraOn: faceDetectionCameraOn, 
+  canvasCtx, 
+  irisConstant_avg, 
+  irisConstant_left,
+  irisConstant_right,
+  leftIris,
+  rightIris,
+  leftTemple, 
+  rightTemple, 
+  vtoLeftTopLandmark,
+  isInitialized,
+  destroy: destroyFaceDetection
+} = useFaceDetection(videoElement, outputCanvas);
+const { initThreeJS, updateSize, vtoStart, vtoStop, normalizePoints, updateRotations, calculateHeadPose, headPose, destroy: destroyThreeJS } = useThreeJS(outputCanvas, threeJsContainer);
+const { filters, applyFilters } = useARFilters(canvasCtx);
+const { calculateMeasurements, detectedPD, detectedPD_L, detectedPD_R, detectedWidth, faceShape, faceSize, getFaceShape } = useMeasurements();
+
+// Reactive measurements data
+const measurements = {
+  detectedPD,
+  detectedPD_L,
+  detectedPD_R,
+  faceShape,
+  faceSize,
+  detectedWidth,
+};
+
+// Handle landmarks processing
+const processLandmarks = () => {
+  try {
+    if (
+      landmarks.value &&
+      leftTemple?.value !== undefined &&
+      rightTemple?.value !== undefined &&
+      vtoLeftTopLandmark?.value !== undefined &&
+      irisConstant_avg?.value !== undefined &&
+      irisConstant_left?.value !== undefined &&
+      irisConstant_right?.value !== undefined &&
+      leftIris?.value !== undefined &&
+      rightIris?.value !== undefined
+    ) {
+      // Only calculate measurements when measurement filter is active
+      if (filters.value.faceMeasurement || showMeasurements.value) {
+        calculateMeasurements(landmarks.value, irisConstant_left.value, irisConstant_right.value, leftIris, rightIris, leftTemple, rightTemple);
+      }
+      
+      // Only update rotations and normalize points when VTO (specs) filter is active
+      if (filters.value.specs) {
+        updateRotations(landmarks.value, leftTemple, rightTemple);
+        normalizePoints(landmarks.value, leftTemple, rightTemple, vtoLeftTopLandmark, irisConstant_avg.value);
+        headPose.value = calculateHeadPose(landmarks.value);
+      }
+      
+      // Always apply canvas filters (lipstick, eyeliner, facemesh) when any are active
+      const hasCanvasFilters = filters.value.lipstick || filters.value.eyeliner || filters.value.facemesh;
+      if (hasCanvasFilters) {
+        applyFilters(landmarks.value, outputCanvas.value);
+      }
+    } else {
+      console.error("One or more required refs are undefined in processLandmarks");
+    }
+  } catch (error) {
+    console.error("Error in processLandmarks:", error);
+  }
+};
+
+// Watch landmarks only after initialization
+onMounted(async () => {
+  await initFaceDetection();
+  initThreeJS();
+  updateSize();
+  if (isInitialized.value) {
+    watch(landmarks, processLandmarks, { deep: true });
+  }
+});
+
+// Toggle camera state
+const handleToggleCamera = () => {
+  isCameraOn.value = !isCameraOn.value;
+  toggleCamera();
+  if (isCameraOn.value) {
+    setTimeout(() => {
+      faceDetected.value = true;
+    }, 1000);
+  } else {
+    faceDetected.value = false;
+  }
+};
 
 // Toggle filter state
 const toggleFilter = (filter) => {
   filters.value[filter] = !filters.value[filter];
-  if (filter == "specs") {
-    vtoStart(specsImage);
+
+  if (filter === "specs") {
+    if (filters.value.specs) {
+      vtoStart(specsImage);
+    } else {
+      vtoStop();
+    }
   }
-  if (filter == "facialShape") {
+
+  if (filter === "faceMeasurement") {
+    if (filters.value[filter]) {
+      getFaceShape.value = true;
+      showMeasurements.value = true;
+    }
+  }
+
+  if (filter === "facialShape") {
     alert("Your facial shape is " + faceShape.value);
-    filters.value[filter] = !filters.value[filter];
+    filters.value[filter] = false;
   }
 };
 
-onMounted(() => {
-  input_video.value = videoElement.value;
-  output_canvas.value = outputCanvas.value;
-  threejs_container.value = threeJsContainer.value;
+const closeMeasurements = () => {
+  showMeasurements.value = false;
+  filters.value.faceMeasurement = false;
+};
 
-  init();
-  start();
-  updateSize();
+onUnmounted(() => {
+  destroyFaceDetection();
+  destroyThreeJS();
 });
 </script>
 
 <template>
-  <div class="container">
-    <div
-      id="facial-insights-wrapper-vto"
-      class="video-container position-relative"
-    >
-      <div class="output-container">
-        <canvas ref="outputCanvas" class="output_canvas_vto"></canvas>
-        <div ref="threeJsContainer" id="threejs-container-vto"></div>
-        <div
-          id="facial-insights-placeholder-vto"
-          style="
-            width: 100%;
-            height: 100%;
-            color: #dedede;
-            background-color: #888;
-            border-radius: 20px;
-          "
-        >
-          <div class="d-flex align-items-center w-100 h-100 text-center">
-            <i class="fas fa-camera mx-auto fa-5x"></i>
+  <div class="app">
+    <Header />
+    <div class="main-content">
+      <div class="left-panel">
+        <CameraControls 
+          :is-camera-on="isCameraOn"
+          :face-detected="faceDetected"
+          @toggle-camera="handleToggleCamera"
+        />
+        <Filters 
+          :filters="filters"
+          @toggle-filter="toggleFilter"
+        />
+      </div>
+      <div class="video-panel">
+        <div class="video-container">
+          <div class="output-container">
+            <canvas ref="outputCanvas" class="output_canvas_vto"></canvas>
+            <div ref="threeJsContainer" id="threejs-container-vto"></div>
+            <div v-if="!isCameraOn" class="camera-placeholder">
+              <div class="placeholder-content">
+                <div class="camera-icon">📷</div>
+                <h3>Start Camera to Begin</h3>
+                <p>Click "Start Camera" to activate face filters</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="stats-panel">
+          <div class="stat-item">
+            <span class="stat-label">FPS:</span>
+            <span class="stat-value">30</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Filters:</span>
+            <span class="stat-value">{{ Object.values(filters).filter(f => f).length }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Quality:</span>
+            <span class="stat-value">HD</span>
+          </div>
+        </div>
+      </div>
+      <div class="right-panel">
+        <div class="info-box">
+          <h3>Instructions</h3>
+          <div class="instruction-steps">
+            <div class="step">
+              <span class="step-number">1</span>
+              <p>Start your camera</p>
+            </div>
+            <div class="step">
+              <span class="step-number">2</span>
+              <p>Position your face in frame</p>
+            </div>
+            <div class="step">
+              <span class="step-number">3</span>
+              <p>Apply filters and effects</p>
+            </div>
+          </div>
+        </div>
+        <div class="features-box">
+          <h3>Features</h3>
+          <div class="feature-list">
+            <div class="feature-item">
+              <span class="feature-icon">🎭</span>
+              <span>Face Mesh Detection</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">💄</span>
+              <span>Makeup Filters</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">🤓</span>
+              <span>Virtual Try-On</span>
+            </div>
+            <div class="feature-item">
+              <span class="feature-icon">📏</span>
+              <span>Face Measurements</span>
+            </div>
           </div>
         </div>
       </div>
@@ -79,464 +239,68 @@ onMounted(() => {
       autoplay
       playsinline
     ></video>
-  </div>
-  <!-- Snapchat-like Buttons -->
-  <div class="snapchat-buttons">
-    <button
-      :class="{ active: filters.facemesh }"
-      @click="toggleFilter('facemesh')"
-    >
-      <img src="https://via.placeholder.com/50" alt="FaceMesh" />
-      <span>FaceMesh</span>
-    </button>
-    <button
-      :class="{ active: filters.lipstick }"
-      @click="toggleFilter('lipstick')"
-    >
-      <img src="https://via.placeholder.com/50" alt="Lipstick" />
-      <span>Lipstick</span>
-    </button>
-    <button
-      :class="{ active: filters.eyeliner }"
-      @click="toggleFilter('eyeliner')"
-    >
-      <img src="https://via.placeholder.com/50" alt="Eyeliner" />
-      <span>Eyeliner</span>
-    </button>
-
-    <button :class="{ active: filters.specs }" @click="toggleFilter('specs')">
-      <img src="https://via.placeholder.com/50" alt="Specs" />
-      <span>Specs</span>
-    </button>
-    <button
-      :class="{ active: filters.facialShape }"
-      @click="toggleFilter('facialShape')"
-    >
-      <img src="https://via.placeholder.com/50" alt="Facial Shape" />
-      <span>Facial Shape</span>
-    </button>
+    <MeasurementsModal
+      :show="showMeasurements"
+      :detected-p-d="measurements.detectedPD.value"
+      :detected-p-d-l="measurements.detectedPD_L.value"
+      :detected-p-d-r="measurements.detectedPD_R.value"
+      :face-shape="measurements.faceShape.value"
+      :face-size="measurements.faceSize.value"
+      :detected-width="measurements.detectedWidth.value"
+      @close="closeMeasurements"
+    />
   </div>
 </template>
 
 <style scoped>
-.container {
+.app {
+  min-height: 100vh;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.main-content {
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  gap: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/* Left Panel */
+.left-panel {
   display: flex;
-  justify-content: center;
-}
-#favorites-wrapper .card {
-  background-color: #f0efe6d4;
-}
-.start-80 {
-  left: 80% !important;
-}
-.start-60 {
-  left: 60% !important;
-}
-.start-52 {
-  left: 52% !important;
-}
-.top-15 {
-  top: 15px !important;
-}
-#kyte-page-container {
-  width: 100%;
-  padding: 0 1em;
-}
-.nav-tabs .nav-link {
-  padding: 0.5em !important;
-}
-.dashboard-card,
-.dashboard-card-blue {
-  border-radius: 0.5rem;
-  padding: 1em;
-}
-.dashboard-card {
-  background-color: rgb(200, 205, 209);
-}
-.dashboard-card-blue {
-  background-color: rgb(10, 68, 140);
-  color: white;
-}
-#recentOrdersWrapper {
-  height: 322px;
-  overflow-y: scroll;
-  overflow-x: hidden;
-}
-.recent-order-card:not(:last-child) {
-  border-bottom: 1px solid rgb(219, 219, 219);
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-#sortable-menu-items,
-#wizard_sortable-menu-items {
-  list-style: none;
-}
-#sortable-menu-items li,
-#wizard_sortable-menu-items li {
-  cursor: grab;
-  padding: 0.5em 1em;
-  margin: 1em 0;
-  border-radius: 1em;
-  border: 1px solid #37353b;
-  background-color: #fff;
+  flex-direction: column;
+  gap: 20px;
 }
 
-.row-grip,
-.row-delete {
-  align-items: center;
-}
-
-.column-style-select {
-  text-decoration: none;
-  display: inline-block;
-  border-radius: 5px;
-  color: blue;
-}
-.column-style-select:hover {
-  background-color: rgb(133, 173, 200);
-  color: blue;
-}
-.column-style-select.active {
-  background-color: rgb(153, 212, 255);
-  color: blue;
-}
-
-.product-main-image {
-  border-radius: 6px !important;
-}
-
-.product-card {
-  text-decoration: none;
-  color: rgb(34, 34, 34);
-}
-
-@media (max-width: 1290px) {
-  .variation-circle {
-    width: 25px;
-    height: 25px;
-    margin: 0 5px;
-  }
-}
-@media (max-width: 1054px) {
-  .variation-circle {
-    width: 20px;
-    height: 20px;
-    margin: 0 2px;
-  }
-}
-@media (max-width: 750px) {
-  .variation-circle {
-    width: 30px;
-    height: 30px;
-    margin: 0 5px;
-  }
-}
-@media (max-width: 560px) {
-  .variation-circle {
-    width: 30px;
-    height: 30px;
-    margin: 0 2px;
-  }
-  #frame-grid h6 {
-    font-size: 1.2rem;
-  }
-}
-
-.navigation {
+/* Video Panel */
+.video-panel {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%; /* Adjust the width as needed */
+  flex-direction: column;
+  gap: 15px;
 }
 
-.variations {
-  display: flex;
-  justify-content: center;
-  overflow-x: auto;
-  overflow-y: hidden;
-  flex-grow: 1;
-  margin: 0 10px; /* Adds spacing between the arrows and the circles */
-}
-
-.variation-circle {
-  width: 35px;
-  height: 35px;
-  border-radius: 50%;
-  margin: 0 10px; /* Adjust spacing between circles as needed */
-  cursor: pointer;
-  border: 2px solid #ccc;
-  display: inline-flex; /* Change from inline-block to inline-flex */
-  justify-content: center;
-  align-items: center;
-  flex: 0 0 auto;
-  overflow: hidden;
-}
-
-.variation-circle img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.navigation button {
-  cursor: pointer;
-}
-
-/* .frame-view-wrapper {
-    
-} */
-.frame-card {
-  border: none;
-  margin-bottom: 1em;
-  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.5);
-  background-color: #fff !important;
-  padding: 0.5em;
-  border-radius: 6px;
-}
-.frame-card .product-link {
-  text-decoration: none;
-  color: rgb(36, 36, 36);
-}
-@keyframes slideFromTop {
-  0% {
-    height: 0;
-    top: 100%;
-  }
-  100% {
-    height: 100%;
-    top: 0;
-  }
-}
-
-.product-link img {
-  animation: slideFromTop 0.8s ease forwards;
-}
-
-/* https://codepen.io/Cormac-Maher/pen/KGpXqZ */
-.pgb .step {
-  text-align: center;
-  position: relative;
-}
-.pgb h2 {
-  font-size: 1.3rem;
-}
-.pgb .step p {
-  position: absolute;
-  height: 60px;
-  width: 100%;
-  text-align: center;
-  display: block;
-  z-index: 3;
-  color: #fff;
-  font-size: 160%;
-  line-height: 55px;
-  opacity: 0.7;
-}
-.pgb .active.step p {
-  opacity: 1;
-  font-weight: 600;
-}
-.pgb .img-circle {
-  display: inline-block;
-  width: 60px;
-  height: 60px;
-  border-radius: 50%;
-  background-color: #9e9e9e;
-  border: 4px solid #fff;
-}
-.pgb .complete .img-circle {
-  background-color: #4caf50;
-}
-.pgb .active .img-circle {
-  background-color: #ff9800;
-}
-.pgb .step .img-circle:before {
-  content: "";
-  display: block;
-  background: #9e9e9e;
-  height: 4px;
-  width: 50%;
-  position: absolute;
-  bottom: 50%;
-  left: 0;
-  z-index: -1;
-  margin-right: 24px;
-}
-.pgb .step .img-circle:after {
-  content: "";
-  display: block;
-  background: #9e9e9e;
-  height: 4px;
-  width: 50%;
-  position: absolute;
-  bottom: 50%;
-  left: 50%;
-  z-index: -1;
-}
-.pgb .step.active .img-circle:after {
-  background: #9e9e9e;
-}
-
-.pgb .step.complete .img-circle:after,
-.pgb .step.active .img-circle:before {
-  background: #4caf50;
-}
-
-.pgb .step:last-of-type .img-circle:after,
-.pgb .step:first-of-type .img-circle:before {
-  display: none;
-}
-
-/* Lens Journey Modal */
-.material-checkbox-wrapper {
-  cursor: pointer;
-}
-.material-checkbox-wrapper:hover {
-  background: #bac1c9 !important;
-}
-.material-type-option-wrapper {
-  padding-bottom: 1em;
-  padding-left: 1em;
-  padding-right: 1em;
-  margin: 1em 0;
-  border: 1px solid grey;
-}
-
-#vto-favorite-frames {
-  display: flex;
-}
-
-.lmItemCard {
-  background: #eee;
-  border-radius: 8px;
-}
-.lmAttributeCardHeading {
-  background: #fff;
-  width: 100%;
-  border-radius: 8px;
-}
-.lmAttributeCard {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  display: block;
-  background-color: #fff;
-  padding: 0.5em;
-  font-size: 0.7em;
-}
-.orderItemCard {
-  background: #eee;
-  border-radius: 8px;
-}
-.orderAttributeCardHeading {
-  background: #fff;
-  width: 100%;
-  border-radius: 8px;
-}
-.orderAttributeCard {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  display: block;
-  background-color: #fff;
-  padding: 0.5em;
-}
-#rx-form-wrapper table {
-  width: 100%; /* Make the table full width of its container */
-  border-collapse: collapse; /* Remove spacing between table cells */
-  border: 1px solid #ccc; /* Add a border for clarity */
-}
-
-/* Apply styles to table headers */
-#rx-form-wrapper th {
-  background-color: #f2f2f2; /* Background color for table headers */
-  text-align: center; /* Center-align header text */
-  padding: 10px; /* Add padding for spacing */
-}
-
-/* Apply styles to table cells */
-#rx-form-wrapper td {
-  text-align: center; /* Center-align cell text */
-  padding: 10px; /* Add padding for spacing */
-  border: 1px solid #ccc; /* Add borders to cell for clarity */
-}
-
-/* Apply alternate row background color */
-#rx-form-wrapper tr:nth-child(even) {
-  background-color: #f9f9f9; /* Alternate row background color */
-}
-
-#rx-form-wrapper select {
-  width: 100%;
-  padding: 8px;
-}
-
-#rx-form-wrapper textarea {
-  border-radius: 10px;
-  border: 1px solid #dee2e6;
-  padding: 8px;
-}
-
-#rxUploadInput {
-  border-radius: 10px;
-  border: 1px solid #dee2e6;
-  padding: 8px;
-}
-
-.lsjOption {
-  cursor: pointer;
-}
-.lsjOption.selected {
-  border-color: rgb(83, 173, 41);
-  background-color: rgb(201, 253, 166);
-}
-
-/* New Order Wizard Styles */
-.big-square-button {
-  width: 200px; /* Large width */
-  height: 200px; /* Large height, making it square */
-  border-radius: 15px; /* Rounded corners */
-  border: 2px solid lightgrey; /* Light grey border */
-  font-size: 20px; /* Larger font size */
-  margin: 10px; /* Spacing between buttons */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.select2-container--open {
-  z-index: 100000 !important;
-}
-
-/* Facial Insights styles */
 .video-container {
-  width: 50%;
+  width: 100%;
   height: 500px;
-  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 20px;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  position: relative;
 }
 
 .output-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
   width: 100%;
   height: 100%;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  object-fit: cover;
-  object-position: center;
-}
-
-.output_canvas,
-#threejs-container,
 .output_canvas_vto,
 #threejs-container-vto {
   position: absolute;
@@ -544,253 +308,221 @@ video {
   left: 0;
   width: 100%;
   height: 100%;
-}
-
-.output_canvas,
-.output_canvas_vto {
-  width: 100%;
-  object-fit: none;
-  object-position: center;
-}
-
-#threejs-container,
-#threejs-container-vto {
-  width: 100%;
-  object-fit: cover;
-  object-position: center;
-}
-
-.output-overlay {
   border-radius: 20px;
+}
+
+.output_canvas_vto {
+  object-fit: cover;
+}
+
+.camera-placeholder {
   position: absolute;
-  top: 0px;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding: 16px;
-  text-align: center;
-}
-
-.output-overlay-face {
-  top: 0px;
-  left: 0px;
-  background-color: rgba(66, 112, 197, 0.7);
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 12px;
-  mask-image: radial-gradient(295px 375px, transparent 50%, rgb(0, 0, 0) 50%);
-}
-
-.output-overlay-face-border {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  border: 5px dashed #ffc107;
-  transform: translate(-50%, -50%);
-  border-radius: 50%;
-  height: 375px;
-  width: 295px;
-}
-
-.output-overlay-text,
-.output-overlay-count {
-  color: #fff;
-  z-index: 2;
-}
-
-.output-overlay-count {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 3rem;
-  border: 2px solid;
-  width: 110px;
-  height: 110px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 100%;
-  background-color: rgba(0, 0, 0, 0.7);
-}
-
-/* Filter */
-
-.filter-dropdowns {
-  overflow-y: auto;
-  height: 100%;
-}
-
-/* slideout */
-.filter-slideout {
-  background: #dbe2e9;
-  color: #333;
-  position: fixed;
   top: 0;
-  right: -220px;
-  width: 200px;
+  left: 0;
+  width: 100%;
   height: 100%;
-  -webkit-transition-duration: 0.3s;
-  -moz-transition-duration: 0.3s;
-  -o-transition-duration: 0.3s;
-  transition-duration: 0.3s;
-  z-index: 10000;
-}
-
-.filter-slideout.on {
-  right: 0;
-}
-
-.slideout-toggle {
-  color: #fff !important;
-  background-color: #04579d;
-  border-top-left-radius: 6px;
-  border-bottom-left-radius: 6px;
-  position: absolute;
-  right: 220px;
-  top: 65%;
-  height: 100px;
-  text-align: center;
-}
-
-.filter-slideout.on .slideout-toggle {
-  right: 200px;
-}
-
-.filter-btn-label {
-  transform: rotate(-90deg);
-  white-space: nowrap;
-  margin-top: 20px;
-}
-
-#prev-page,
-#sg-prev-page {
-  left: -20px;
-}
-#next-page,
-#sg-next-page {
-  right: -20px;
-}
-
-.setup-frame-gallery {
-  padding: 20px;
-  background-color: #f9f9f9;
-  border-radius: 8px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-}
-
-.input-group .form-control {
-  border-radius: 4px 0 0 4px;
-}
-
-.input-group .input-group-text {
-  border-radius: 0 4px 4px 0;
-}
-
-#subdomainFeedback {
-  font-weight: bold;
-}
-
-/* Carousel favorites btn */
-.carousel-favorites {
-  margin-left: -10px;
-  margin-right: -10px;
-}
-.carousel-favorites .carousel-item {
-  padding: 10px;
-}
-.carousel-favorites .carousel-btn {
-  border-radius: 100%;
-  padding: 0;
-  height: 36px;
-  width: 36px;
-}
-.carousel-favorites .carousel-btn-prev {
-  margin-left: -10px;
-}
-.carousel-favorites .carousel-btn-next {
-  margin-right: -10px;
-}
-.order-wrapper .order-id {
-  flex: 0 0 auto;
-  width: 110px;
-}
-.order-wrapper .order-date {
-  flex: 0 0 auto;
-  width: 120px;
-}
-.order-wrapper .order-status {
-  flex: 0 0 auto;
-  width: 170px;
-}
-.order-wrapper .order-action {
-  flex: 0 0 auto;
-  width: 100px;
-}
-.order-wrapper .order-img {
-  width: 100px;
-}
-
-@media (max-width: 767.98px) {
-  .order-wrapper .order-id,
-  .order-wrapper .order-date,
-  .order-wrapper .order-status,
-  .order-wrapper .order-action {
-    width: 100%;
-  }
-
-  .output-overlay-face {
-    mask-image: radial-gradient(265px 345px, transparent 50%, rgb(0, 0, 0) 50%);
-  }
-
-  .output-overlay-face-border {
-    height: 345px;
-    width: 265px;
-  }
-}
-
-.snapchat-buttons {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.5));
   display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.snapchat-buttons button {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: #fff;
-  border: 2px solid #ddd;
-  border-radius: 10px;
-  padding: 1rem;
-  cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  border-radius: 20px;
 }
 
-.snapchat-buttons button.active {
-  border-color: #007bff;
-  background-color: #e7f3ff;
+.placeholder-content {
+  text-align: center;
+  color: white;
 }
 
-snapchat-buttons button:hover {
-  transform: scale(1.1);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+.camera-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.8;
 }
 
-.snapchat-buttons button img {
-  width: 50px;
-  height: 50px;
+.placeholder-content h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
-.snapchat-buttons button span {
+.placeholder-content p {
+  opacity: 0.8;
+  font-size: 1rem;
+}
+
+/* Stats Panel */
+.stats-panel {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  padding: 15px;
+  backdrop-filter: blur(10px);
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+}
+
+.stat-item {
+  text-align: center;
+  color: white;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+/* Right Panel */
+.right-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.info-box,
+.features-box {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 15px;
+  padding: 20px;
+  backdrop-filter: blur(10px);
+  color: white;
+}
+
+.info-box h3,
+.features-box h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 15px 0;
+  color: white;
+}
+
+.instruction-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.step {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.step-number {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.step p {
+  margin: 0;
   font-size: 0.9rem;
-  font-weight: bold;
-  color: #333;
+  opacity: 0.9;
+}
+
+.feature-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+.feature-icon {
+  font-size: 1.2rem;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .main-content {
+    grid-template-columns: 280px 1fr 250px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 15px;
+  }
+  
+  .left-panel,
+  .right-panel {
+    flex-direction: row;
+    overflow-x: auto;
+  }
+  
+  .left-panel > *,
+  .right-panel > * {
+    flex-shrink: 0;
+  }
+  
+  .video-container {
+    width: 100%;
+    min-height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: 10px;
+  }
+  
+  .main-content {
+    gap: 10px;
+  }
+  
+  .left-panel,
+  .right-panel {
+    flex-direction: column;
+  }
+  
+  .video-container {
+    width: 100%;
+  }
+  
+  .stats-panel {
+    flex-direction: column;
+    gap: 10px;
+  }
+  
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+  
+  .stat-label,
+  .stat-value {
+    display: inline;
+  }
+}
+
+/* Hidden video element */
+.input_video_vto {
+  display: none;
 }
 </style>
