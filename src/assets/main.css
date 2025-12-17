@@ -1,0 +1,12 @@
+@import './base.css';
+
+#app {
+  width: min(1180px, 100%);
+  margin: 0 auto;
+  padding: 2.5rem 1.75rem 3rem;
+  font-weight: normal;
+}
+
+a {
+  color: inherit;
+}
