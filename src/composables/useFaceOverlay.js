@@ -154,6 +154,9 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const rightEye = toPixels(landmarks[263])
     const center = { x: (leftEye.x + rightEye.x) / 2, y: (leftEye.y + rightEye.y) / 2 }
 
+    // Calculate rotation angle from eye positions
+    const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
+
     const eyeDistance = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y)
     const width = eyeDistance * 1.6
     const aspect = specsImg.height > 0 ? specsImg.height / specsImg.width : 0.35
@@ -161,7 +164,10 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const offsetY = -height * 0.15 // drop glasses slightly below the eye line
 
     ctx.save()
-    ctx.drawImage(specsImg, center.x - width / 2, center.y - height / 2 - offsetY, width, height)
+    // Translate to center, rotate, then draw
+    ctx.translate(center.x, center.y - offsetY)
+    ctx.rotate(angle)
+    ctx.drawImage(specsImg, -width / 2, -height / 2, width, height)
     ctx.restore()
   }
 
