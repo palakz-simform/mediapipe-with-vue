@@ -177,10 +177,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const ctx = canvas.getContext('2d')
     if (!drawingUtils) drawingUtils = new DrawingUtils(ctx)
 
-    drawingUtils.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_TESSELATION, {
-      color: '#5eead4',
-      lineWidth: 1,
-    })
+    // Draw only key facial feature connectors
     drawingUtils.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LIPS, {
       color: '#f472b6',
       lineWidth: 2,
@@ -193,9 +190,26 @@ export function useFaceOverlay(videoRef, canvasRef) {
       color: '#a855f7',
       lineWidth: 1.5,
     })
+    drawingUtils.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_LEFT_EYEBROW, {
+      color: '#fbbf24',
+      lineWidth: 1.5,
+    })
+    drawingUtils.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_RIGHT_EYEBROW, {
+      color: '#fbbf24',
+      lineWidth: 1.5,
+    })
     drawingUtils.drawConnectors(landmarks, FaceLandmarker.FACE_LANDMARKS_FACE_OVAL, {
-      color: '#fde047',
+      color: '#5eead4',
       lineWidth: 2,
+    })
+
+    // Draw landmark dots
+    ctx.fillStyle = '#ffffff'
+    landmarks.forEach((landmark) => {
+      const { x, y } = toPixels(landmark)
+      ctx.beginPath()
+      ctx.arc(x, y, 1.5, 0, 2 * Math.PI)
+      ctx.fill()
     })
   }
 
