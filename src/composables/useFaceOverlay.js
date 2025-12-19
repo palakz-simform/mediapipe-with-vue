@@ -33,8 +33,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
   let specsImg
   let specsReady = false
 
-  const modelAssetUrl =
-    'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
+  const modelAssetUrl = '/face_landmarker.task'
 
   const ensureSpecsImage = () => {
     if (specsReady || specsImg) return
@@ -52,7 +51,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
     statusMessage.value = 'Loading MediaPipe model...'
 
     const filesetResolver = await FilesetResolver.forVisionTasks(
-      'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm'
+      '/node_modules/@mediapipe/tasks-vision/wasm'
     )
 
     faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
@@ -271,8 +270,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
     resizeCanvasToVideo()
 
     const ctx = canvas.getContext('2d')
-    ctx.clearRect(0, 0, canvas.width, canvas.height)
-
+    ctx.clearRect(0, 0, canvas.width, canvas.height)                
+    console.log('Drawing results:', results)
     const landmarks = results?.faceLandmarks?.[0]
     if (!landmarks) {
       faceDetected.value = false

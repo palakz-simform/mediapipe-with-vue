@@ -15,4 +15,13 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
   },
+  server: {
+    fs: {
+      // Allow serving files from node_modules
+      allow: ['..']
+    }
+  },
+  optimizeDeps: {
+    exclude: ['@mediapipe/tasks-vision']
+  }
 })
