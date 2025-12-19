@@ -268,6 +268,8 @@ h1 {
 }
 
 .video-card {
+  width: 640px;
+  height: 480px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.07);
   border-radius: 16px;
@@ -281,7 +283,8 @@ h1 {
   border-radius: 12px;
   background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.12), transparent),
     #0b1220;
-  min-height: 310px;
+  height: 100%;
+  width: 100%;
 }
 
 .video-element {
@@ -290,6 +293,8 @@ h1 {
   border-radius: 12px;
   filter: brightness(0.95);
   transform: scaleX(-1);
+  height: 100%;
+  width: 100%;
 }
 
 .overlay {
