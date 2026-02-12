@@ -1,17 +1,21 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import FiltersPanel from './components/FiltersPanel.vue'
 import StatusPanel from './components/StatusPanel.vue'
 import { useFaceOverlay } from './composables/useFaceOverlay'
+import { use3DAvatar } from './composables/use3DAvatar'
 
 const videoRef = ref(null)
 const canvasRef = ref(null)
+const canvas3DRef = ref(null)
 
 const {
   isCameraOn,
   isLoadingModel,
   statusMessage,
   faceDetected,
+  faceLandmarks,
+  blendShapes,
   filters,
   measurements,
   showMeasurements,
@@ -19,6 +23,33 @@ const {
   stopCamera,
   toggleFilter,
 } = useFaceOverlay(videoRef, canvasRef)
+
+const {
+  isModelLoaded,
+  isAvatarVisible,
+  updateAvatar,
+  handleResize,
+  toggleVisibility,
+  setAvatarVisible,
+} = use3DAvatar(canvas3DRef, videoRef)
+
+// Update 3D avatar when face data changes
+watch([faceLandmarks, blendShapes], ([landmarks, shapes]) => {
+  if (landmarks && isModelLoaded.value) {
+    updateAvatar(landmarks, shapes)
+  }
+})
+
+watch(isCameraOn, (isOn) => {
+  if (!isOn) {
+    setAvatarVisible(false)
+  }
+})
+
+// Handle video metadata loaded for canvas sizing
+const onVideoMetadataLoaded = () => {
+  handleResize()
+}
 </script>
 
 <template>
@@ -39,7 +70,13 @@ const {
 
     <section class="stage">
       <div class="left-panel">
-        <FiltersPanel :filters="filters" @toggle="toggleFilter" />
+        <FiltersPanel 
+          :filters="filters" 
+          :isAvatarVisible="isAvatarVisible"
+          :isModelLoaded="isModelLoaded"
+          @toggle="toggleFilter" 
+          @toggleAvatar="toggleVisibility"
+        />
         <StatusPanel
           :isCameraOn="isCameraOn"
           :faceDetected="faceDetected"
@@ -55,8 +92,10 @@ const {
             autoplay
             muted
             playsinline
+            @loadedmetadata="onVideoMetadataLoaded"
             aria-label="Camera feed"
           ></video>
+          <canvas ref="canvas3DRef" class="overlay-3d" aria-label="3D Avatar overlay"></canvas>
           <canvas ref="canvasRef" class="overlay" aria-label="Face mesh overlay"></canvas>
           <div v-if="!isCameraOn" class="hint">
             <p>Press "Turn camera on" and allow permission.</p>
@@ -304,6 +343,16 @@ h1 {
   height: 100%;
   pointer-events: none;
   transform: scaleX(-1);
+  z-index: 2;
+}
+
+.overlay-3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
 }
 
 .hint {
@@ -313,6 +362,20 @@ h1 {
   place-items: center;
   color: #cdd8ea;
   background: linear-gradient(160deg, rgba(59, 130, 246, 0.08), rgba(6, 182, 212, 0.08));
+  z-index: 3;
+}
+
+.error-hint {
+  position: absolute;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  z-index: 4;
 }
 
 .metrics {

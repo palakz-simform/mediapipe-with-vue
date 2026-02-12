@@ -7,9 +7,11 @@ export function useFaceOverlay(videoRef, canvasRef) {
   const isLoadingModel = ref(false)
   const statusMessage = ref('Camera is off')
   const faceDetected = ref(false)
+  const faceLandmarks = ref(null)
+  const blendShapes = ref(null)
 
   const filters = ref({
-    facemesh: true,
+    facemesh: false,
     lipstick: false,
     eyeliner: false,
     glasses: false,
@@ -60,7 +62,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
       },
       runningMode: 'VIDEO',
       numFaces: 1,
-      outputFaceBlendshapes: false,
+      outputFaceBlendshapes: true,
     })
 
     isLoadingModel.value = false
@@ -275,12 +277,23 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const landmarks = results?.faceLandmarks?.[0]
     if (!landmarks) {
       faceDetected.value = false
+      faceLandmarks.value = null
+      blendShapes.value = null
       statusMessage.value = isCameraOn.value ? 'No face detected' : 'Camera is off'
       return
     }
 
     faceDetected.value = true
     statusMessage.value = 'Face detected'
+    
+    // Store landmarks for 3D avatar positioning
+    faceLandmarks.value = landmarks
+    
+    // Store blend shapes for 3D avatar
+    if (results.faceBlendshapes?.[0]?.categories) {
+      blendShapes.value = results.faceBlendshapes[0].categories
+    }
+    
     applyFilters(landmarks)
   }
 
@@ -368,6 +381,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
     isLoadingModel,
     statusMessage,
     faceDetected,
+    faceLandmarks,
+    blendShapes,
     filters,
     measurements,
     showMeasurements,

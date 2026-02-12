@@ -4,17 +4,34 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isAvatarVisible: {
+    type: Boolean,
+    default: true,
+  },
+  isModelLoaded: {
+    type: Boolean,
+    default: false,
+  },
 })
 
-const emit = defineEmits(['toggle'])
+const emit = defineEmits(['toggle', 'toggleAvatar'])
 
 const toggle = (key) => emit('toggle', key)
+const toggleAvatar = () => emit('toggleAvatar')
+
 </script>
 
 <template>
   <div class="panel tight">
     <h2>Filters</h2>
     <div class="filter-grid">
+      <button 
+        :class="['chip', { active: props.isAvatarVisible && props.isModelLoaded }]" 
+        :disabled="!props.isModelLoaded"
+        @click="toggleAvatar"
+      >
+        🧑 3D Avatar
+      </button>
       <button :class="['chip', { active: props.filters.facemesh }]" @click="toggle('facemesh')">
         🕸️ Face mesh
       </button>
