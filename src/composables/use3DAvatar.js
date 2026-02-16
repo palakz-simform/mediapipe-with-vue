@@ -13,7 +13,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   let headBone = null
 
   // Ready Player Me model URL with ARKit blend shapes enabled
-  const MODEL_URL = 'https://models.readyplayer.me/698c2441378169941785f4a6.glb?morphTargets=ARKit'
+  const MODEL_URL = 'https://models.readyplayer.me/69931ec7e61aa2e2a24ed1e5.glb?morphTargets=ARKit'
 
   // ========== SETUP ==========
   
