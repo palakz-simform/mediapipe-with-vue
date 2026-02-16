@@ -28,11 +28,11 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     camera = new THREE.PerspectiveCamera(35, canvas.clientWidth / canvas.clientHeight, 0.1, 1000)
     camera.position.z = 2.5
 
-    // Create renderer (transparent background)
-    renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true })
+    // Create renderer (solid background, not transparent)
+    renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
     renderer.setSize(canvas.clientWidth, canvas.clientHeight)
     renderer.setPixelRatio(window.devicePixelRatio)
-    renderer.setClearColor(0x000000, 0)
+    renderer.setClearColor(0x0f1419, 1)
 
     // Add lights
     scene.add(new THREE.AmbientLight(0xffffff, 0.6))

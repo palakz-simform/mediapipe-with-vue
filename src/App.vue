@@ -95,7 +95,6 @@ const onVideoMetadataLoaded = () => {
             @loadedmetadata="onVideoMetadataLoaded"
             aria-label="Camera feed"
           ></video>
-          <canvas ref="canvas3DRef" class="overlay-3d" aria-label="3D Avatar overlay"></canvas>
           <canvas ref="canvasRef" class="overlay" aria-label="Face mesh overlay"></canvas>
           <div v-if="!isCameraOn" class="hint">
             <p>Press "Turn camera on" and allow permission.</p>
@@ -108,6 +107,10 @@ const onVideoMetadataLoaded = () => {
           <div class="metric"><span>Face width</span><strong>{{ measurements.faceWidth }} px</strong></div>
           <div class="metric"><span>Face shape</span><strong>{{ measurements.faceShape }}</strong></div>
         </div>
+      </div>
+      
+      <div class="avatar-card" v-show="isAvatarVisible && isModelLoaded">
+        <canvas ref="canvas3DRef" class="avatar-canvas" aria-label="3D Avatar"></canvas>
       </div>
     </section>
   </div>
@@ -192,10 +195,10 @@ h1 {
 
 .stage {
   display: grid;
-  grid-template-columns: 300px 1fr 280px;
+  grid-template-columns: 300px 1fr 1fr 280px;
   gap: 20px;
   align-items: start;
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
 }
 
@@ -346,13 +349,21 @@ h1 {
   z-index: 2;
 }
 
-.overlay-3d {
-  position: absolute;
-  inset: 0;
+.avatar-card {
+  width: 640px;
+  height: 480px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 0.85rem;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.35);
+}
+
+.avatar-canvas {
   width: 100%;
   height: 100%;
-  pointer-events: none;
-  z-index: 1;
+  border-radius: 12px;
+  display: block;
 }
 
 .hint {
