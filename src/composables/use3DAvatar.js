@@ -97,7 +97,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
 
     // Position avatar to overlay face
     avatar.position.x = -(nose.x - 0.5) * 2
-    avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.6
+    avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.61
     avatar.position.z = -1.5
 
     // Calculate head rotation
@@ -109,8 +109,10 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     // roll -> head tilt left right
       
     const yaw = -((noseTip.x - eyeCenterX) / faceWidth) * Math.PI * 0.8
-    const pitch = ((noseTip.y - faceCenterY) / faceHeight) * Math.PI * 0.4
-    const roll = -Math.atan((rightEye.y - leftEye.y) / (rightEye.x - leftEye.x))
+    const pitch2D = ((noseTip.y - faceCenterY) / faceHeight) * Math.PI * 0.7
+    const pitchDepth = Math.atan2(chin.z - forehead.z, chin.y - forehead.y)
+    const pitch = pitch2D * 0.6 + pitchDepth * 1.0
+    const roll = Math.atan((rightEye.y - leftEye.y) / (rightEye.x - leftEye.x))
 
     // Apply rotation to head bone only
     if (headBone) {
@@ -118,16 +120,25 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     }
     // Apply facial expressions (blend shapes)
     if (blendShapes && morphTargetMeshes.length > 0) {
-      // Build lookup of blend shape values 
+      // Build lookup of blend shape values (swap Left/Right to fix mirroring)
       const values = {}
       blendShapes.forEach(({ categoryName, score }) => {
-        values[categoryName] = score
-        // Also store with _L/_R suffix for left/right
+        // Swap left and right to fix mirroring
+        let mappedName = categoryName
         if (categoryName.endsWith('Left')) {
-          values[categoryName.slice(0, -4) + '_L'] = score
+          mappedName = categoryName.slice(0, -4) + 'Right'
+        } else if (categoryName.endsWith('Right')) {
+          mappedName = categoryName.slice(0, -5) + 'Left'
+        }
+        
+        values[mappedName] = score
+        
+        // Also store with _L/_R suffix (swapped)
+        if (categoryName.endsWith('Left')) {
+          values[categoryName.slice(0, -4) + '_R'] = score
         }
         if (categoryName.endsWith('Right')) {
-          values[categoryName.slice(0, -5) + '_R'] = score
+          values[categoryName.slice(0, -5) + '_L'] = score
         }
       })
         
