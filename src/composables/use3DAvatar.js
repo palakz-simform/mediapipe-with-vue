@@ -13,7 +13,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   let headBone = null
 
   // Ready Player Me model URL with ARKit blend shapes enabled
-  const MODEL_URL = 'https://models.readyplayer.me/698c2441378169941785f4a6.glb?morphTargets=ARKit&textureAtlas=1024'
+  const MODEL_URL = 'https://models.readyplayer.me/698c2441378169941785f4a6.glb?morphTargets=ARKit'
 
   // ========== SETUP ==========
   
@@ -29,14 +29,13 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     camera.position.z = 2.5
 
     // Create renderer (solid background, not transparent)
-    renderer = new THREE.WebGLRenderer({ canvas, antialias: true })
+    renderer = new THREE.WebGLRenderer({ canvas})
     renderer.setSize(canvas.clientWidth, canvas.clientHeight)
-    renderer.setPixelRatio(window.devicePixelRatio)
     renderer.setClearColor(0x0f1419, 1)
 
     // Add lights
-    scene.add(new THREE.AmbientLight(0xffffff, 0.6))
-    const light = new THREE.DirectionalLight(0xffffff, 0.8)
+    scene.add(new THREE.AmbientLight(0xffffff, 1.4))
+    const light = new THREE.DirectionalLight(0xffffff, 1.6)
     light.position.set(1, 1, 1)
     scene.add(light)
 
