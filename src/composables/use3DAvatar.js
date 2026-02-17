@@ -1,6 +1,8 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import model3davatar from '@/assets/model.glb'
+import { useArmBone } from './useArmBone'
 
 export function use3DAvatar(canvas3DRef, videoRef) {
   // State
@@ -12,8 +14,12 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   let morphTargetMeshes = []
   let headBone = null
 
+  // Arm bone composable
+  const { leftArmBone, rightArmBone, findArmBones, applyAPose, reset: resetArmBones } = useArmBone()
+
   // Ready Player Me model URL with ARKit blend shapes enabled
-  const MODEL_URL = 'https://models.readyplayer.me/69931ec7e61aa2e2a24ed1e5.glb?morphTargets=ARKit'
+  // const MODEL_URL = 'https://models.readyplayer.me/698c2441378169941785f4a6.glb?morphTargets=ARKit'
+  const MODEL_URL = model3davatar
 
   // ========== SETUP ==========
   
@@ -53,6 +59,10 @@ export function use3DAvatar(canvas3DRef, videoRef) {
             headBone = child
         }
       })
+
+      // Find and configure arm bones
+      findArmBones(avatar)
+      applyAPose()
 
       avatar.visible = isAvatarVisible.value
       scene.add(avatar)
@@ -96,7 +106,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
 
     // Position avatar to overlay face
     avatar.position.x = -(nose.x - 0.5) * 2
-    avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.61
+    avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.71
     avatar.position.z = -1.5
 
     // Calculate head rotation
@@ -194,6 +204,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   onUnmounted(() => {
     if (renderer) renderer.dispose()
     if (scene) scene.clear()
+    resetArmBones()
   })
 
   return {
