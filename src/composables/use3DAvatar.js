@@ -15,7 +15,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   let headBone = null
 
   // Arm bone composable
-  const { leftArmBone, rightArmBone, findArmBones, applyAPose, reset: resetArmBones } = useArmBone()
+  const { findArmBones, applyAPose, reset: resetArmBones } = useArmBone()
 
   // Ready Player Me model URL with ARKit blend shapes enabled
   // const MODEL_URL = 'https://models.readyplayer.me/698c2441378169941785f4a6.glb?morphTargets=ARKit'
@@ -36,8 +36,6 @@ export function use3DAvatar(canvas3DRef, videoRef) {
 
     // Create renderer (solid background, not transparent)
     renderer = new THREE.WebGLRenderer({ canvas})
-    renderer.setSize(canvas.clientWidth, canvas.clientHeight)
-    renderer.setClearColor(0x0f1419, 1)
 
     // Add lights
     scene.add(new THREE.AmbientLight(0xffffff, 1.4))
@@ -56,7 +54,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
           morphTargetMeshes.push(child)
         }
         if (child.isBone && child.name.toLowerCase().includes('head') && !child.name.toLowerCase().includes('top')) {
-            headBone = child
+          headBone = child
         }
       })
 
@@ -87,7 +85,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     if (!avatar || !isModelLoaded.value || !isAvatarVisible.value) return
 
     // Get key landmarks
-    const nose = landmarks[6]         // Nose bridge (stable point)
+    const nose = landmarks[6]
     const chin = landmarks[152]
     const forehead = landmarks[10]
     const leftCheek = landmarks[234]
@@ -141,30 +139,24 @@ export function use3DAvatar(canvas3DRef, videoRef) {
         }
         
         values[mappedName] = score
-        
-        // Also store with _L/_R suffix (swapped)
-        if (categoryName.endsWith('Left')) {
-          values[categoryName.slice(0, -4) + '_R'] = score
-        }
-        if (categoryName.endsWith('Right')) {
-          values[categoryName.slice(0, -5) + '_L'] = score
-        }
       })
         
 
-      // Apply to each mesh's morph targets
+      // Apply to each mesh's morph targets (Apply the expressions)
       morphTargetMeshes.forEach((mesh) => {
+        if (!mesh.morphTargetDictionary || !mesh.morphTargetInfluences) return
+
         const dict = mesh.morphTargetDictionary
         const influences = mesh.morphTargetInfluences
-        if (!dict || !influences) return
 
-        Object.keys(dict).forEach((name) => {
-          const idx = dict[name]
-          // Try to find matching blend shape value
-          const value = values[name] || values[name.replace(/_/g, '')] || 0
-          // Smooth transition
-          influences[idx] += (value - influences[idx]) * 0.6
-        })
+        // Update each blend shape
+        for (const shapeName in dict) {
+          const shapeIndex = dict[shapeName]
+          const targetValue = values[shapeName] || 0
+          
+          const currentValue = influences[shapeIndex]
+          influences[shapeIndex] = currentValue + (targetValue - currentValue) * 0.6
+        }
       })
     }
   }

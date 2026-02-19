@@ -10,7 +10,6 @@ export function useArmBone() {
         avatar.traverse((child) => {
       if (child.isBone) {
         const name = child.name.toLowerCase()
-        console.log('Checking bone:', name)
         // Try to find upper arm or shoulder bones
         if (
           (name.includes('leftarm') ||
