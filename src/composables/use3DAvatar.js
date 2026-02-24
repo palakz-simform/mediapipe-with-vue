@@ -82,84 +82,84 @@ export function use3DAvatar(canvas3DRef, videoRef) {
   // ========== UPDATE AVATAR ==========
 
     const updateAvatar = (landmarks, blendShapes) => {
-    if (!avatar || !isModelLoaded.value || !isAvatarVisible.value) return
+      if (!avatar || !isModelLoaded.value || !isAvatarVisible.value) return
 
-    // Get key landmarks
-    const nose = landmarks[6]
-    const chin = landmarks[152]
-    const forehead = landmarks[10]
-    const leftCheek = landmarks[234]
-    const rightCheek = landmarks[454]
-    const leftEye = landmarks[468]
-    const rightEye = landmarks[473]
-    const noseTip = landmarks[1]
+      // Get key landmarks
+      const nose = landmarks[6]
+      const chin = landmarks[152]
+      const forehead = landmarks[10]
+      const leftCheek = landmarks[234]
+      const rightCheek = landmarks[454]
+      const leftEye = landmarks[468]
+      const rightEye = landmarks[473]
+      const noseTip = landmarks[1]
 
-    // Calculate face size and position
-    const faceWidth = Math.abs(rightCheek.x - leftCheek.x)
-    const faceHeight = Math.abs(chin.y - forehead.y)
+      // Calculate face size and position
+      const faceWidth = Math.abs(rightCheek.x - leftCheek.x)
+      const faceHeight = Math.abs(chin.y - forehead.y)
 
-    // Scale avatar to match face size
-    const scale = faceWidth * 20
-    avatar.scale.setScalar(scale)
+      // Scale avatar to match face size
+      const scale = faceWidth * 20
+      avatar.scale.setScalar(scale)
 
-    // Position avatar to overlay face
-    avatar.position.x = -(nose.x - 0.5) * 2
-    avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.71
-    avatar.position.z = -1.5
+      // Position avatar to overlay face
+      avatar.position.x = -(nose.x - 0.5) * 2
+      avatar.position.y = -(nose.y - 0.5) * 2 - scale * 1.71
+      avatar.position.z = -1.5
 
-    // Calculate head rotation
-    const eyeCenterX = (leftEye.x + rightEye.x) / 2
-    const faceCenterY = (forehead.y + chin.y) / 2
+      // Calculate head rotation
+      const eyeCenterX = (leftEye.x + rightEye.x) / 2
+      const faceCenterY = (forehead.y + chin.y) / 2
 
-    // yaw -> left/right rotation
-    // pitch -> head up/down rotation
-    // roll -> head tilt left right
-      
-    const yaw = -((noseTip.x - eyeCenterX) / faceWidth) * Math.PI * 0.8
-    const pitch2D = ((noseTip.y - faceCenterY) / faceHeight) * Math.PI * 0.7
-    const pitchDepth = Math.atan2(chin.z - forehead.z, chin.y - forehead.y)
-    const pitch = pitch2D * 0.6 + pitchDepth * 1.0
-    const roll = Math.atan((rightEye.y - leftEye.y) / (rightEye.x - leftEye.x))
-
-    // Apply rotation to head bone only
-    if (headBone) {
-      headBone.rotation.set(pitch * 0.7, yaw * 0.7, roll * 0.5)
-    }
-    // Apply facial expressions (blend shapes)
-    if (blendShapes && morphTargetMeshes.length > 0) {
-      // Build lookup of blend shape values (swap Left/Right to fix mirroring)
-      const values = {}
-      blendShapes.forEach(({ categoryName, score }) => {
-        // Swap left and right to fix mirroring
-        let mappedName = categoryName
-        if (categoryName.endsWith('Left')) {
-          mappedName = categoryName.slice(0, -4) + 'Right'
-        } else if (categoryName.endsWith('Right')) {
-          mappedName = categoryName.slice(0, -5) + 'Left'
-        }
+      // yaw -> left/right rotation
+      // pitch -> head up/down rotation
+      // roll -> head tilt left right
         
-        values[mappedName] = score
-      })
-        
+      const yaw = -((noseTip.x - eyeCenterX) / faceWidth) * Math.PI * 0.8
+      const pitch2D = ((noseTip.y - faceCenterY) / faceHeight) * Math.PI * 0.7
+      const pitchDepth = Math.atan2(chin.z - forehead.z, chin.y - forehead.y)
+      const pitch = pitch2D * 0.6 + pitchDepth * 1.0
+      const roll = Math.atan((rightEye.y - leftEye.y) / (rightEye.x - leftEye.x))
 
-      // Apply to each mesh's morph targets (Apply the expressions)
-      morphTargetMeshes.forEach((mesh) => {
-        if (!mesh.morphTargetDictionary || !mesh.morphTargetInfluences) return
-
-        const dict = mesh.morphTargetDictionary
-        const influences = mesh.morphTargetInfluences
-
-        // Update each blend shape
-        for (const shapeName in dict) {
-          const shapeIndex = dict[shapeName]
-          const targetValue = values[shapeName] || 0
+      // Apply rotation to head bone only
+      if (headBone) {
+        headBone.rotation.set(pitch * 0.7, yaw * 0.7, roll * 0.5)
+      }
+      // Apply facial expressions (blend shapes)
+      if (blendShapes && morphTargetMeshes.length > 0) {
+        // Build lookup of blend shape values (swap Left/Right to fix mirroring)
+        const values = {}
+        blendShapes.forEach(({ categoryName, score }) => {
+          // Swap left and right to fix mirroring
+          let mappedName = categoryName
+          if (categoryName.endsWith('Left')) {
+            mappedName = categoryName.slice(0, -4) + 'Right'
+          } else if (categoryName.endsWith('Right')) {
+            mappedName = categoryName.slice(0, -5) + 'Left'
+          }
           
-          const currentValue = influences[shapeIndex]
-          influences[shapeIndex] = currentValue + (targetValue - currentValue) * 0.6
-        }
-      })
+          values[mappedName] = score
+        })
+          
+
+        // Apply to each mesh's morph targets (Apply the expressions)
+        morphTargetMeshes.forEach((mesh) => {
+          if (!mesh.morphTargetDictionary || !mesh.morphTargetInfluences) return
+
+          const dict = mesh.morphTargetDictionary
+          const influences = mesh.morphTargetInfluences
+
+          // Update each blend shape
+          for (const shapeName in dict) {
+            const shapeIndex = dict[shapeName]
+            const targetValue = values[shapeName] || 0
+            
+            const currentValue = influences[shapeIndex]
+            influences[shapeIndex] = currentValue + (targetValue - currentValue) * 0.6
+          }
+        })
+      }
     }
-  }
 
   // ========== UTILITIES ==========
 

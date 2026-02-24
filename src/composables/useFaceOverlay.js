@@ -22,7 +22,6 @@ export function useFaceOverlay(videoRef, canvasRef) {
     pd: 0,
     pdLeft: 0,
     pdRight: 0,
-    faceWidth: 0,
     faceShape: '-',
   })
 
@@ -112,7 +111,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
     }
     moveTo(outerLipIndices[0], true)
     outerLipIndices.slice(1).forEach((i) => moveTo(i))
-    ctx.closePath()
+    ctx.closePath() 
     moveTo(innerLipIndices[0], true)
     innerLipIndices.slice(1).forEach((i) => moveTo(i))
     ctx.closePath()
@@ -153,10 +152,27 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const ctx = canvas.getContext('2d')
     const leftEye = toPixels(landmarks[33])
     const rightEye = toPixels(landmarks[263])
-    const center = { x: (leftEye.x + rightEye.x) / 2, y: (leftEye.y + rightEye.y) / 2 }
+    const noseBridge = toPixels(landmarks[6]) // Nose bridge for accurate positioning
+    
+    // Use nose bridge for X position (follows nose when head turns)
+    // Use eye midpoint for Y position
+    const center = { x: noseBridge.x, y: (leftEye.y + rightEye.y) / 2 }
 
-    // Calculate rotation angle from eye positions
+    // Calculate rotation angle from eye positions (roll)
     const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
+
+    // Calculate yaw (left/right turn) for perspective
+    // Use nose tip and face center to estimate yaw
+    const noseTip = toPixels(landmarks[1])
+    const leftCheek = toPixels(landmarks[234])
+    const rightCheek = toPixels(landmarks[454])
+    const faceCenter = { x: (leftCheek.x + rightCheek.x) / 2, y: (leftCheek.y + rightCheek.y) / 2 }
+    const faceWidth = Math.hypot(leftCheek.x - rightCheek.x, leftCheek.y - rightCheek.y)
+    
+    // Normalized horizontal offset of nose from face center (-1 to 1)
+    const noseOffset = (noseTip.x - faceCenter.x) / (faceWidth / 2)
+    // Estimate yaw angle in radians (approximate)
+    const yaw = -noseOffset * 0.5 // Scale factor for sensitivity
 
     const eyeDistance = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y)
     const width = eyeDistance * 1.6
@@ -165,10 +181,21 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const offsetY = -height * 0.15 // drop glasses slightly below the eye line
 
     ctx.save()
-    // Translate to center, rotate, then draw
+    // Translate to center, rotate, then draw with perspective
     ctx.translate(center.x, center.y - offsetY)
     ctx.rotate(angle)
-    ctx.drawImage(specsImg, -width / 2, -height / 2, width, height)
+    
+    // Apply perspective transformation based on yaw
+    // When turning left (yaw < 0), skew right side back
+    // When turning right (yaw > 0), skew left side back
+    const skewFactor = Math.tan(yaw)
+    ctx.transform(1, 0, -skewFactor * 0.3, 1, 0, 0)
+    
+    // Scale width based on yaw to simulate depth
+    const perspectiveScale = Math.cos(yaw)
+    const adjustedWidth = width * perspectiveScale
+    
+    ctx.drawImage(specsImg, -adjustedWidth / 2, -height / 2, adjustedWidth, height)
     ctx.restore()
   }
 
@@ -246,12 +273,10 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const pdLeft = distance(leftIris, rightIris) / 2
     const pdRight = pdLeft
     const pd = distance(leftIris, rightIris)
-    const faceWidth = distance(leftTemple, rightTemple)
     measurements.value = {
       pd: Math.round(pd),
       pdLeft: Math.round(pdLeft),
       pdRight: Math.round(pdRight),
-      faceWidth: Math.round(faceWidth),
       faceShape: classifyFaceShape(landmarks),
     }
   }

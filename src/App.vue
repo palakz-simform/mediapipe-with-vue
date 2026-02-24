@@ -104,7 +104,6 @@ const onVideoMetadataLoaded = () => {
           <div class="metric"><span>PD</span><strong>{{ measurements.pd }} px</strong></div>
           <div class="metric"><span>PD Left</span><strong>{{ measurements.pdLeft }} px</strong></div>
           <div class="metric"><span>PD Right</span><strong>{{ measurements.pdRight }} px</strong></div>
-          <div class="metric"><span>Face width</span><strong>{{ measurements.faceWidth }} px</strong></div>
           <div class="metric"><span>Face shape</span><strong>{{ measurements.faceShape }}</strong></div>
         </div>
       </div>
