@@ -14,10 +14,11 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['toggle', 'toggleAvatar'])
+const emit = defineEmits(['toggle', 'toggleAvatar', 'captureMeasurements'])
 
 const toggle = (key) => emit('toggle', key)
 const toggleAvatar = () => emit('toggleAvatar')
+const captureMeasurements = () => emit('captureMeasurements')
 
 </script>
 
@@ -44,8 +45,8 @@ const toggleAvatar = () => emit('toggleAvatar')
       <button :class="['chip', { active: props.filters.glasses }]" @click="toggle('glasses')">
         🤓 Glasses
       </button>
-      <button :class="['chip', { active: props.filters.measurements }]" @click="toggle('measurements')">
-        📏 Measurements
+      <button class="chip" @click="captureMeasurements">
+        📏 Capture Measurements
       </button>
     </div>
     <p class="hint-text">All filters run locally via MediaPipe Tasks.</p>

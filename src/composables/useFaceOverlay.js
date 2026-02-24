@@ -25,7 +25,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
     faceShape: '-',
   })
 
-  const showMeasurements = computed(() => filters.value.measurements && faceDetected.value)
+  const hasMeasurements = ref(false)
+  const showMeasurements = computed(() => hasMeasurements.value && faceDetected.value)
 
   let faceLandmarker
   let drawingUtils
@@ -279,6 +280,13 @@ export function useFaceOverlay(videoRef, canvasRef) {
       pdRight: Math.round(pdRight),
       faceShape: classifyFaceShape(landmarks),
     }
+    hasMeasurements.value = true
+  }
+
+  const captureMeasurements = () => {
+    if (faceLandmarks.value) {
+      updateMeasurements(faceLandmarks.value)
+    }
   }
 
   const applyFilters = (landmarks) => {
@@ -286,7 +294,6 @@ export function useFaceOverlay(videoRef, canvasRef) {
     if (filters.value.lipstick) drawLipstick(landmarks)
     if (filters.value.eyeliner) drawEyeliner(landmarks)
     if (filters.value.glasses) drawGlasses(landmarks)
-    if (filters.value.measurements) updateMeasurements(landmarks)
   }
 
   const drawResults = (results) => {
@@ -414,5 +421,6 @@ export function useFaceOverlay(videoRef, canvasRef) {
     startCamera,
     stopCamera,
     toggleFilter,
+    captureMeasurements,
   }
 }

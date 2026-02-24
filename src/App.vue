@@ -22,6 +22,7 @@ const {
   startCamera,
   stopCamera,
   toggleFilter,
+  captureMeasurements,
 } = useFaceOverlay(videoRef, canvasRef)
 
 const {
@@ -76,6 +77,7 @@ const onVideoMetadataLoaded = () => {
           :isModelLoaded="isModelLoaded"
           @toggle="toggleFilter" 
           @toggleAvatar="toggleVisibility"
+          @captureMeasurements="captureMeasurements"
         />
         <StatusPanel
           :isCameraOn="isCameraOn"
