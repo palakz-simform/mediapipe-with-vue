@@ -34,8 +34,16 @@ export function useFaceOverlay(videoRef, canvasRef) {
   let mediaStream
   let specsImg
   let specsReady = false
+  let ctx = null
 
   const modelAssetUrl = '/face_landmarker.task'
+
+  const getCtx = () => {
+    const canvas = canvasRef.value
+    if (!canvas) return null
+    if (!ctx || ctx.canvas !== canvas) ctx = canvas.getContext('2d')
+    return ctx
+  }
 
   const ensureSpecsImage = () => {
     if (specsReady || specsImg) return
@@ -92,9 +100,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const drawLipstick = (landmarks) => {
-    const canvas = canvasRef.value
-    if (!canvas || !landmarks?.length) return
-    const ctx = canvas.getContext('2d')
+    const ctx = getCtx()
+    if (!ctx || !landmarks?.length) return
     const outerLipIndices = [
       61, 185, 40, 39, 37, 0, 267, 269, 270, 409, 291, 375, 321, 405, 314, 17, 84, 181, 91, 146,
     ]
@@ -123,7 +130,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
   const drawEyeliner = (landmarks) => {
     const canvas = canvasRef.value
     if (!canvas || !landmarks?.length) return
-    const ctx = canvas.getContext('2d')
+    const ctx = getCtx()
+    if (!ctx) return
     const paths = [
       [33, 160, 158, 133],
       [263, 387, 385, 362],
@@ -150,7 +158,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
     ensureSpecsImage()
     if (!specsReady) return
 
-    const ctx = canvas.getContext('2d')
+    const ctx = getCtx()
+    if (!ctx) return
     const leftEye = toPixels(landmarks[33])
     const rightEye = toPixels(landmarks[263])
     const noseBridge = toPixels(landmarks[6]) // Nose bridge for accurate positioning
@@ -203,7 +212,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
   const drawFaceMesh = (landmarks) => {
     const canvas = canvasRef.value
     if (!canvas || !landmarks?.length) return
-    const ctx = canvas.getContext('2d')
+    const ctx = getCtx()
+    if (!ctx) return
     if (!drawingUtils) drawingUtils = new DrawingUtils(ctx)
 
     // Draw only key facial feature connectors
@@ -303,9 +313,9 @@ export function useFaceOverlay(videoRef, canvasRef) {
 
     resizeCanvasToVideo()
 
-    const ctx = canvas.getContext('2d')
+    const ctx = getCtx()
+    if (!ctx) return
     ctx.clearRect(0, 0, canvas.width, canvas.height)                
-    console.log('Drawing results:', results)
     const landmarks = results?.faceLandmarks?.[0]
     if (!landmarks) {
       faceDetected.value = false
@@ -380,11 +390,11 @@ export function useFaceOverlay(videoRef, canvasRef) {
       video.srcObject = null
     }
 
-    const canvas = canvasRef.value
-    if (canvas) {
-      const ctx = canvas.getContext('2d')
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
+    const clearCtx = getCtx()
+    if (clearCtx) {
+      clearCtx.clearRect(0, 0, clearCtx.canvas.width, clearCtx.canvas.height)
     }
+    ctx = null
 
     isCameraOn.value = false
     faceDetected.value = false
