@@ -38,11 +38,10 @@ export function useFaceOverlay(videoRef, canvasRef) {
 
   const modelAssetUrl = '/face_landmarker.task'
 
-  const getCtx = () => {
+ const getCtx = () => {
     const canvas = canvasRef.value
     if (!canvas) return null
-    if (!ctx || ctx.canvas !== canvas) ctx = canvas.getContext('2d')
-    return ctx
+    return canvas.getContext('2d')
   }
 
   const ensureSpecsImage = () => {
@@ -210,10 +209,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const drawFaceMesh = (landmarks) => {
-    const canvas = canvasRef.value
-    if (!canvas || !landmarks?.length) return
     const ctx = getCtx()
-    if (!ctx) return
+    if (!ctx || !landmarks?.length) return
     if (!drawingUtils) drawingUtils = new DrawingUtils(ctx)
 
     // Draw only key facial feature connectors
@@ -307,15 +304,12 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const drawResults = (results) => {
-    const canvas = canvasRef.value
     const video = videoRef.value
-    if (!canvas || !video) return
+    const ctx = getCtx()
+    if (!ctx || !video) return
 
     resizeCanvasToVideo()
 
-    const ctx = getCtx()
-    if (!ctx) return
-    ctx.clearRect(0, 0, canvas.width, canvas.height)                
     const landmarks = results?.faceLandmarks?.[0]
     if (!landmarks) {
       faceDetected.value = false
@@ -359,7 +353,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
 
     try {
       await ensureFaceLandmarker()
-      mediaStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+      mediaStream = await navigator.mediaDevices.getUserMedia({ video: true })
       const video = videoRef.value
       video.srcObject = mediaStream
 
