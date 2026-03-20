@@ -127,10 +127,8 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const drawEyeliner = (landmarks) => {
-    const canvas = canvasRef.value
-    if (!canvas || !landmarks?.length) return
     const ctx = getCtx()
-    if (!ctx) return
+    if (!ctx || !landmarks?.length) return
     const paths = [
       [33, 160, 158, 133],
       [263, 387, 385, 362],
@@ -152,59 +150,37 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const drawGlasses = (landmarks) => {
-    const canvas = canvasRef.value
-    if (!canvas || !landmarks?.length) return
+    const ctx = getCtx()
+    if (!ctx || !landmarks?.length) return
     ensureSpecsImage()
     if (!specsReady) return
 
-    const ctx = getCtx()
-    if (!ctx) return
+    // Key landmark points
     const leftEye = toPixels(landmarks[33])
     const rightEye = toPixels(landmarks[263])
-    const noseBridge = toPixels(landmarks[6]) // Nose bridge for accurate positioning
-    
-    // Use nose bridge for X position (follows nose when head turns)
-    // Use eye midpoint for Y position
-    const center = { x: noseBridge.x, y: (leftEye.y + rightEye.y) / 2 }
-
-    // Calculate rotation angle from eye positions (roll)
-    const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
-
-    // Calculate yaw (left/right turn) for perspective
-    // Use nose tip and face center to estimate yaw
+    const noseBridge = toPixels(landmarks[6])
     const noseTip = toPixels(landmarks[1])
     const leftCheek = toPixels(landmarks[234])
     const rightCheek = toPixels(landmarks[454])
-    const faceCenter = { x: (leftCheek.x + rightCheek.x) / 2, y: (leftCheek.y + rightCheek.y) / 2 }
-    const faceWidth = Math.hypot(leftCheek.x - rightCheek.x, leftCheek.y - rightCheek.y)
-    
-    // Normalized horizontal offset of nose from face center (-1 to 1)
-    const noseOffset = (noseTip.x - faceCenter.x) / (faceWidth / 2)
-    // Estimate yaw angle in radians (approximate)
-    const yaw = -noseOffset * 0.5 // Scale factor for sensitivity
 
+    // Position: nose bridge X + eye midpoint Y, shifted down slightly
+    const eyeMidY = (leftEye.y + rightEye.y) / 2
     const eyeDistance = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y)
     const width = eyeDistance * 1.6
-    const aspect = specsImg.height > 0 ? specsImg.height / specsImg.width : 0.35
-    const height = width * aspect
-    const offsetY = -height * 0.15 // drop glasses slightly below the eye line
+    const height = width * (specsImg.height > 0 ? specsImg.height / specsImg.width : 0.35)
+
+    // Roll: tilt between eyes
+    const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
+
+    // Yaw: horizontal head turn from nose offset relative to face center
+    const faceWidth = Math.hypot(leftCheek.x - rightCheek.x, leftCheek.y - rightCheek.y)
+    const yaw = -((noseTip.x - (leftCheek.x + rightCheek.x) / 2) / (faceWidth / 2)) * 0.5
 
     ctx.save()
-    // Translate to center, rotate, then draw with perspective
-    ctx.translate(center.x, center.y - offsetY)
+    ctx.translate(noseBridge.x, eyeMidY + height * 0.15) // shift glasses below eye line
     ctx.rotate(angle)
-    
-    // Apply perspective transformation based on yaw
-    // When turning left (yaw < 0), skew right side back
-    // When turning right (yaw > 0), skew left side back
-    const skewFactor = Math.tan(yaw)
-    ctx.transform(1, 0, -skewFactor * 0.3, 1, 0, 0)
-    
-    // Scale width based on yaw to simulate depth
-    const perspectiveScale = Math.cos(yaw)
-    const adjustedWidth = width * perspectiveScale
-    
-    ctx.drawImage(specsImg, -adjustedWidth / 2, -height / 2, adjustedWidth, height)
+    ctx.transform(1, 0, -Math.tan(yaw) * 0.3, 1, 0, 0) // skew for yaw perspective
+    ctx.drawImage(specsImg, -width * Math.cos(yaw) / 2, -height / 2, width * Math.cos(yaw), height)
     ctx.restore()
   }
 
@@ -276,8 +252,6 @@ export function useFaceOverlay(videoRef, canvasRef) {
   const updateMeasurements = (landmarks) => {
     const leftIris = landmarks[468]
     const rightIris = landmarks[473]
-    const leftTemple = landmarks[127]
-    const rightTemple = landmarks[356]
     const pdLeft = distance(leftIris, rightIris) / 2
     const pdRight = pdLeft
     const pd = distance(leftIris, rightIris)
