@@ -35,6 +35,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
   let specsImg
   let specsReady = false
   let ctx = null
+  const AVERAGE_IRIS_DIAMETER_MM = 11.8
 
   const modelAssetUrl = '/face_landmarker.task'
 
@@ -250,11 +251,28 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const updateMeasurements = (landmarks) => {
+    const noseBridge = landmarks[6]
     const leftIris = landmarks[468]
     const rightIris = landmarks[473]
-    const pdLeft = distance(leftIris, rightIris) / 2
-    const pdRight = pdLeft
-    const pd = distance(leftIris, rightIris)
+
+    // Estimate px->mm scale using iris diameter landmarks.
+    // Left iris ring: 469,470,471,472 | Right iris ring: 474,475,476,477
+    const leftIrisHorizontal = distance(landmarks[469], landmarks[471])
+    const leftIrisVertical = distance(landmarks[470], landmarks[472])
+    const rightIrisHorizontal = distance(landmarks[474], landmarks[476])
+    const rightIrisVertical = distance(landmarks[475], landmarks[477])
+
+    const irisDiameterPx =
+      (leftIrisHorizontal + leftIrisVertical + rightIrisHorizontal + rightIrisVertical) / 4
+    const pxPerMm = irisDiameterPx > 0 ? irisDiameterPx / AVERAGE_IRIS_DIAMETER_MM : 0
+    const pdLeftPx = distance(noseBridge, leftIris)
+    const pdRightPx = distance(noseBridge, rightIris)
+    const pdPx = distance(leftIris, rightIris)
+
+    const pdLeft = pxPerMm > 0 ? pdLeftPx / pxPerMm : 0
+    const pdRight = pxPerMm > 0 ? pdRightPx / pxPerMm : 0
+    const pd = pxPerMm > 0 ? pdPx / pxPerMm : 0
+
     measurements.value = {
       pd: Math.round(pd),
       pdLeft: Math.round(pdLeft),
