@@ -27,7 +27,7 @@ const captureMeasurements = () => emit('captureMeasurements')
     <h2>Filters</h2>
     <div class="filter-grid">
       <button 
-        :class="['chip', { active: props.isAvatarVisible && props.isModelLoaded }]" 
+        :class="['chip', { active: props.isAvatarVisible }]" 
         :disabled="!props.isModelLoaded"
         @click="toggleAvatar"
       >

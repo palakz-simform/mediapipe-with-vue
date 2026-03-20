@@ -36,7 +36,7 @@ const {
 
 // Update 3D avatar when face data changes
 watch([faceLandmarks, blendShapes], ([landmarks, shapes]) => {
-  if (landmarks && isModelLoaded.value) {
+  if (landmarks && isModelLoaded.value && isAvatarVisible.value) {
     updateAvatar(landmarks, shapes)
   }
 })
