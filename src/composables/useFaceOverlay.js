@@ -164,13 +164,13 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const eyeDistance = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y)
     const width = eyeDistance * 1.6
     const height = width * (specsImg.height > 0 ? specsImg.height / specsImg.width : 0.35)
-    const angle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
+    const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
     const faceWidth = Math.hypot(leftCheek.x - rightCheek.x, leftCheek.y - rightCheek.y)
     const yaw = -((noseTip.x - (leftCheek.x + rightCheek.x) / 2) / (faceWidth / 2)) * 0.5
 
     ctx.save()
     ctx.translate(noseBridge.x, eyeMidY + height * 0.15)
-    ctx.rotate(angle)
+    ctx.rotate(roll)
     ctx.transform(1, 0, -Math.tan(yaw) * 0.3, 1, 0, 0)
     ctx.drawImage(specsImg, -width * Math.cos(yaw) / 2, -height / 2, width * Math.cos(yaw), height)
     ctx.restore()
@@ -255,12 +255,33 @@ export function useFaceOverlay(videoRef, canvasRef) {
     filters.value[key] = !filters.value[key]
   }
 
+  const autoStopCameraIfBackgrounded = () => {
+    if (isCameraOn.value) stopCamera()
+  }
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState !== 'visible') {
+      autoStopCameraIfBackgrounded()
+    }
+  }
+
+  const handleWindowBlur = () => {
+    autoStopCameraIfBackgrounded()
+  }
+
   onMounted(() => {
     ensureSpecsImage()
     statusMessage.value = 'Load the model and start the camera to see the overlays.'
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('blur', handleWindowBlur)
+    window.addEventListener('pagehide', handleWindowBlur)
   })
 
   onUnmounted(() => {
+    document.removeEventListener('visibilitychange', handleVisibilityChange)
+    window.removeEventListener('blur', handleWindowBlur)
+    window.removeEventListener('pagehide', handleWindowBlur)
     dispose()
   })
 

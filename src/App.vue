@@ -103,9 +103,9 @@ const onVideoMetadataLoaded = () => {
           </div>
         </div>
         <div class="metrics" v-if="showMeasurements">
-          <div class="metric"><span>PD</span><strong>{{ measurements.pd }} px</strong></div>
-          <div class="metric"><span>PD Left</span><strong>{{ measurements.pdLeft }} px</strong></div>
-          <div class="metric"><span>PD Right</span><strong>{{ measurements.pdRight }} px</strong></div>
+          <div class="metric"><span>PD</span><strong>{{ measurements.pd }} mm</strong></div>
+          <div class="metric"><span>PD Left</span><strong>{{ measurements.pdLeft }} mm</strong></div>
+          <div class="metric"><span>PD Right</span><strong>{{ measurements.pdRight }} mm</strong></div>
           <div class="metric"><span>Face shape</span><strong>{{ measurements.faceShape }}</strong></div>
         </div>
       </div>
