@@ -1,7 +1,7 @@
 import { ref, onMounted, onUnmounted } from 'vue'
 import * as THREE from 'three'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import model3davatar from '@/assets/model.glb'
+import model3davatar from '/model.glb'
 import { useArmBone } from './useArmBone'
 
 export function use3DAvatar(canvas3DRef, videoRef) {
@@ -35,8 +35,6 @@ export function use3DAvatar(canvas3DRef, videoRef) {
 
     new GLTFLoader().load(MODEL_URL, (gltf) => {
       avatar = gltf.scene
-      avatar.scale.setScalar(2.5)
-
       avatar.traverse((child) => {
         if (child.isMesh && child.morphTargetDictionary) morphTargetMeshes.push(child)
         if (child.isBone && child.name.toLowerCase().includes('head') && !child.name.toLowerCase().includes('top')) {
