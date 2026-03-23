@@ -1,0 +1,108 @@
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #e2e8f0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+}
+
+.app {
+  width: min(1000px, 94vw);
+  text-align: center;
+}
+
+h1 {
+  margin: 16px 0;
+  font-size: 1.6rem;
+}
+
+.game-wrap {
+  position: relative;
+  border: 2px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #0b1224;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: linear-gradient(#0b1224, #111827);
+}
+
+.hud {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  text-align: left;
+  background: rgba(15, 23, 42, 0.65);
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  gap: 12px;
+  background: rgba(2, 6, 23, 0.55);
+}
+
+.overlay.hidden {
+  display: none;
+}
+
+button {
+  justify-self: center;
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1d4ed8;
+}
+
+.instructions {
+  margin-top: 12px;
+  opacity: 0.9;
+}
+
+.camera-box {
+  margin: 12px auto 0;
+  width: min(360px, 94vw);
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.webcam-preview {
+  width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+}
+
+.camera-label {
+  font-size: 0.85rem;
+  opacity: 0.7;
+}

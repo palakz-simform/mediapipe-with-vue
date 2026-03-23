@@ -1,47 +1,56 @@
 <script setup>
-import HelloWorld from './components/HelloWorld.vue'
-import TheWelcome from './components/TheWelcome.vue'
+import { ref, onMounted, onUnmounted } from 'vue'
+import { useGame } from '@/composables/useGame'
+
+const canvasRef = ref(null)
+const webcamRef = ref(null)
+
+const {
+  gameState,
+  score,
+  handLabel,
+  overlayVisible,
+  overlayMessage,
+  actionBtnText,
+  setup,
+  teardown,
+  onActionClick,
+} = useGame(canvasRef, webcamRef)
+
+onMounted(setup)
+onUnmounted(teardown)
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="./assets/logo.svg" width="125" height="125" />
+  <main class="app">
+    <h1>Hand Gesture Runner</h1>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
+    <section class="game-wrap">
+      <canvas ref="canvasRef" width="900" height="420" />
+
+      <div class="hud">
+        <div><strong>State:</strong> <span>{{ gameState }}</span></div>
+        <div><strong>Score:</strong> <span>{{ Math.floor(score) }}</span></div>
+        <div><strong>Hand:</strong> <span>{{ handLabel }}</span></div>
+      </div>
+
+      <div v-if="overlayVisible" class="overlay">
+        <p>{{ overlayMessage }}</p>
+        <button @click="onActionClick">{{ actionBtnText }}</button>
+      </div>
+    </section>
+
+    <div class="camera-box">
+      <video
+        ref="webcamRef"
+        playsinline
+        muted
+        autoplay
+        class="webcam-preview"
+      />
+      <span class="camera-label">Live Camera</span>
     </div>
-  </header>
 
-  <main>
-    <TheWelcome />
+    <p class="instructions">Move your index finger upward quickly to jump.</p>
   </main>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-}
-</style>
