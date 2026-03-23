@@ -159,20 +159,42 @@ export function useFaceOverlay(videoRef, canvasRef) {
     const noseTip = toPixels(landmarks[1])
     const leftCheek = toPixels(landmarks[234])
     const rightCheek = toPixels(landmarks[454])
+    const forehead = landmarks[10]
+    const chin = landmarks[152]
+    const noseTipLandmark = landmarks[1]
 
+    // roll
     const eyeMidY = (leftEye.y + rightEye.y) / 2
     const eyeDistance = Math.hypot(leftEye.x - rightEye.x, leftEye.y - rightEye.y)
     const width = eyeDistance * 1.6
     const height = width * (specsImg.height > 0 ? specsImg.height / specsImg.width : 0.35)
     const roll = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x)
+
+    // yaw
     const faceWidth = Math.hypot(leftCheek.x - rightCheek.x, leftCheek.y - rightCheek.y)
     const yaw = -((noseTip.x - (leftCheek.x + rightCheek.x) / 2) / (faceWidth / 2)) * 0.5
+    const yawWidthScale = Math.max(Math.cos(yaw), 0.82)
+
+    // pitch
+    const faceHeight = Math.max(Math.abs(chin.y - forehead.y), 1e-6)
+    const faceCenterY = (forehead.y + chin.y) / 2
+    const pitch2D = ((noseTipLandmark.y - faceCenterY) / faceHeight) * Math.PI * 0.7
+    const pitchDepth = Math.atan2(chin.z - forehead.z, chin.y - forehead.y)
+    const pitch = pitch2D * 0.6 + pitchDepth * 1.0
+    
+    const pitchHeightScale = Math.min(Math.max(1 - pitch * 0.35, 0.82), 1.2)
+    const pitchYOffset = pitch * height * 0.08
 
     ctx.save()
-    ctx.translate(noseBridge.x, eyeMidY + height * 0.15)
+    ctx.translate(noseBridge.x, eyeMidY + height * 0.15 + pitchYOffset)
     ctx.rotate(roll)
-    ctx.transform(1, 0, -Math.tan(yaw) * 0.3, 1, 0, 0)
-    ctx.drawImage(specsImg, -width * Math.cos(yaw) / 2, -height / 2, width * Math.cos(yaw), height)
+    ctx.drawImage(
+      specsImg,
+      -width * yawWidthScale / 2,
+      -(height * pitchHeightScale) / 2,
+      width * yawWidthScale,
+      height * pitchHeightScale,
+    )
     ctx.restore()
   }
 
