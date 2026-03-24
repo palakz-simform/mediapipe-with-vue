@@ -116,7 +116,7 @@ export function use3DAvatar(canvas3DRef, videoRef) {
     if (videoWidth && videoHeight) {
       camera.aspect = videoWidth / videoHeight
       camera.updateProjectionMatrix()
-      renderer.setSize(videoWidth, videoHeight)
+      renderer.setSize(videoWidth, videoHeight, false)
     }
   }
 
