@@ -274,6 +274,7 @@ export function useFaceOverlay(videoRef, canvasRef) {
   }
 
   const toggleFilter = (key) => {
+    if (!(key in filters.value)) return
     filters.value[key] = !filters.value[key]
   }
 

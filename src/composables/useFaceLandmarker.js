@@ -17,22 +17,28 @@ export function useFaceLandmarker(videoRef, { onResults } = {}) {
     isLoadingModel.value = true
     statusMessage.value = 'Loading MediaPipe model...'
 
-    const filesetResolver = await FilesetResolver.forVisionTasks(
-      '/node_modules/@mediapipe/tasks-vision/wasm'
-    )
+    try {
+      const filesetResolver = await FilesetResolver.forVisionTasks(
+        '/node_modules/@mediapipe/tasks-vision/wasm'
+      )
 
-    faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
-      baseOptions: {
-        modelAssetPath: modelAssetUrl,
-      },
-      runningMode: 'VIDEO',
-      numFaces: 1,
-      outputFaceBlendshapes: true,
-    })
+      faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
+        baseOptions: {
+          modelAssetPath: modelAssetUrl,
+        },
+        runningMode: 'VIDEO',
+        numFaces: 1,
+        outputFaceBlendshapes: true,
+      })
 
-    isLoadingModel.value = false
-    statusMessage.value = 'Model loaded. Start the camera to see overlays.'
-    return faceLandmarker
+      statusMessage.value = 'Model loaded. Start the camera to see overlays.'
+      return faceLandmarker
+    } catch (err) {
+      statusMessage.value = 'Failed to load MediaPipe model.'
+      throw err
+    } finally {
+      isLoadingModel.value = false
+    }
   }
 
   const runDetectionLoop = () => {
@@ -44,8 +50,8 @@ export function useFaceLandmarker(videoRef, { onResults } = {}) {
       return
     }
 
-    const nowMs = performance.now()
-    const results = faceLandmarker.detectForVideo(video, nowMs)
+    const milliSec = performance.now()
+    const results = faceLandmarker.detectForVideo(video, milliSec)
     onResults?.(results)
     animationFrameId = requestAnimationFrame(runDetectionLoop)
   }
