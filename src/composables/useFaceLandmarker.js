@@ -19,7 +19,7 @@ export function useFaceLandmarker(videoRef, { onResults } = {}) {
 
     try {
       const filesetResolver = await FilesetResolver.forVisionTasks(
-        '/node_modules/@mediapipe/tasks-vision/wasm'
+        '/wasm'
       )
 
       faceLandmarker = await FaceLandmarker.createFromOptions(filesetResolver, {

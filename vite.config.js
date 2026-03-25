@@ -6,7 +6,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 
 // https://vite.dev/config/
 export default defineConfig({
-  assetsInclude: ['**/*.glb', '**/*.gltf'],
+  assetsInclude: ['**/*.glb'], 
   plugins: [
     vue(),
     vueDevTools(),
@@ -15,14 +15,5 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
-  },
-  server: {
-    fs: {
-      // Allow serving files from node_modules
-      allow: ['..']
-    }
-  },
-  optimizeDeps: {
-    exclude: ['@mediapipe/tasks-vision']
   }
 })
