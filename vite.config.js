@@ -15,5 +15,16 @@ export default defineConfig({
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     },
+  },
+  build: {
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'mediapipe': ['@mediapipe/tasks-vision'],
+          'three': ['three', 'three/examples/jsm/loaders/GLTFLoader.js'],
+        }
+      }
+    }
   }
 })

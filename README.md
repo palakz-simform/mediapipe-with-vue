@@ -1,38 +1,65 @@
-# vue-project
+# MediaPipe Face Tracker with 3D Avatar
 
-This template should help get you started developing with Vue 3 in Vite.
+A Vue 3 app that uses **MediaPipe Face Landmarker** to detect facial landmarks in real-time and overlay a 3D avatar + AR filters on your face via webcam.
 
-## Recommended IDE Setup
+---
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## Features
 
-## Recommended Browser Setup
+- 🎥 Real-time face landmark detection via webcam
+- 🧑‍💻 3D avatar that tracks your face movements
+- 💄 AR filters (frame VTO, face overlays, measurements)
+- ⚡ Powered by MediaPipe + Three.js + Vue 3
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+---
 
-## Customize configuration
+## Tech Stack
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- [Vue 3](https://vuejs.org/) + Vite
+- [MediaPipe Face Landmarker](https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker)
+- [Three.js](https://threejs.org/) for 3D rendering
 
-## Project Setup
+---
+
+## Setup
 
 ```sh
+cd vue-project
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Compile and Minify for Production
+---
 
-```sh
-npm run build
+## Project Structure
+
 ```
+public/
+├── face_landmarker.task
+├── model.glb
+└── wasm/
+
+src/
+├── App.vue
+├── main.js
+├── components/
+│   ├── FiltersPanel.vue
+│   └── StatusPanel.vue
+└── composables/
+    ├── use3DAvatar.js
+    ├── useArmBone.js
+    ├── useFaceLandmarker.js
+    ├── useFaceMeasurements.js
+    └── useFaceOverlay.js
+```
+
+---
+
+## Requirements
+
+- Chromium-based browser (Chrome, Edge, Brave)
+- Webcam access
+
+
+## Author
+Palak Zalavadia (palak.z@simformsolutions.com)
